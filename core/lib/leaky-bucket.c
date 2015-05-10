@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Hasso-Plattner-Institut.
+ * Copyright (c) 2017, Hasso-Plattner-Institut.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,56 +32,76 @@
 
 /**
  * \file
- *         CCM* convenience functions for LLSEC use
+ *         Leaky Bucket Counter (LBC)
  * \author
- *         Justin King-Lacroix <justin.kinglacroix@gmail.com>
  *         Konrad Krentz <konrad.krentz@gmail.com>
  */
 
-#include "llsec/ccm-star-packetbuf.h"
-#include "net/llsec/anti-replay.h"
-#include "net/linkaddr.h"
-#include "net/packetbuf.h"
-#include "net/llsec/llsec802154.h"
+#include "lib/leaky-bucket.h"
+#include "sys/cc.h"
 #include <string.h>
 
-#if LLSEC802154_USES_FRAME_COUNTER
+#define DEBUG 0
+#if DEBUG
+#include <stdio.h>
+#define PRINTF(...) printf(__VA_ARGS__)
+#else /* DEBUG */
+#define PRINTF(...)
+#endif /* DEBUG */
 
 /*---------------------------------------------------------------------------*/
-static const uint8_t *
-get_extended_address(const linkaddr_t *addr)
-#if LINKADDR_SIZE == 2
+static void
+leak(void *ptr)
 {
-  /* workaround for short addresses: derive EUI64 as in RFC 6282 */
-  static linkaddr_extended_t template = { { 0x00 , 0x00 , 0x00 ,
-                                            0xFF , 0xFE , 0x00 , 0x00 , 0x00 } };
-  
-  template.u16[3] = LLSEC802154_HTONS(addr->u16);
-  
-  return template.u8;
+  struct leaky_bucket *lb;
+
+  lb = (struct leaky_bucket *) ptr;
+  lb->filling_level--;
+
+  PRINTF("leaky-bucket#leak: (%p) filling_level = %i\n",
+      lb, lb->filling_level);
+
+  if(lb->filling_level) {
+    ctimer_reset(&lb->leakage_timer);
+  }
 }
-#else /* LINKADDR_SIZE == 2 */
-{
-  return addr->u8;
-}
-#endif /* LINKADDR_SIZE == 2 */
 /*---------------------------------------------------------------------------*/
 void
-ccm_star_packetbuf_set_nonce(uint8_t *nonce, int forward)
+leaky_bucket_init(struct leaky_bucket *lb,
+    uint16_t capacity,
+    clock_time_t leakage_duration)
 {
-  const linkaddr_t *source_addr;
-  
-  source_addr = forward ? &linkaddr_node_addr : packetbuf_addr(PACKETBUF_ADDR_SENDER);
-  memcpy(nonce, get_extended_address(source_addr), 8);
-  nonce[8] = packetbuf_attr(PACKETBUF_ATTR_FRAME_COUNTER_BYTES_2_3) >> 8;
-  nonce[9] = packetbuf_attr(PACKETBUF_ATTR_FRAME_COUNTER_BYTES_2_3) & 0xff;
-  nonce[10] = packetbuf_attr(PACKETBUF_ATTR_FRAME_COUNTER_BYTES_0_1) >> 8;
-  nonce[11] = packetbuf_attr(PACKETBUF_ATTR_FRAME_COUNTER_BYTES_0_1) & 0xff;
-#if LLSEC802154_USES_AUX_HEADER
-  nonce[12] = packetbuf_attr(PACKETBUF_ATTR_SECURITY_LEVEL);
-#else /* LLSEC802154_USES_AUX_HEADER */
-  nonce[12] = packetbuf_holds_broadcast() ? 0xFF : packetbuf_attr(PACKETBUF_ATTR_NEIGHBOR_INDEX);
-#endif /* LLSEC802154_USES_AUX_HEADER */
+  PRINTF("leaky-bucket#init: (%p) capacity = %i; leakage_duration = %lus\n",
+      lb, capacity, leakage_duration / CLOCK_SECOND);
+  memset(lb, 0, sizeof(struct leaky_bucket));
+  lb->capacity = capacity;
+  lb->leakage_duration = leakage_duration;
 }
 /*---------------------------------------------------------------------------*/
-#endif /* LLSEC802154_USES_FRAME_COUNTER */
+void
+leaky_bucket_pour(struct leaky_bucket *lb, uint16_t drop_size)
+{
+  lb->filling_level = MIN(lb->filling_level + drop_size, lb->capacity);
+
+  PRINTF("leaky-bucket#pour: (%p) filling_level = %i\n",
+      lb, lb->filling_level);
+
+  if(!ctimer_expired(&lb->leakage_timer)) {
+    /* already scheduled */
+    return;
+  }
+
+  if(!lb->filling_level) {
+    /* nothing to leak */
+    return;
+  }
+
+  ctimer_set(&lb->leakage_timer, lb->leakage_duration, leak, lb);
+}
+/*---------------------------------------------------------------------------*/
+int
+leaky_bucket_is_full(struct leaky_bucket *lb)
+{
+  return lb->filling_level == lb->capacity;
+}
+/*---------------------------------------------------------------------------*/
