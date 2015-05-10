@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Swedish Institute of Computer Science.
+ * Copyright (c) 2017, Hasso-Plattner-Institut.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,22 +32,42 @@
 
 /**
  * \file
- *         Creates and parses the ContikiMAC header.
+ *         Leaky bucket implementation.
  * \author
  *         Konrad Krentz <konrad.krentz@gmail.com>
  */
 
-#ifndef CONTIKIMAC_FRAMER_H_
-#define CONTIKIMAC_FRAMER_H_
+#ifndef LEAKY_BUCKET_H_
+#define LEAKY_BUCKET_H_
 
-#include "net/mac/framer.h"
+#include "contiki.h"
+#include "sys/ctimer.h"
 
-#ifdef CONTIKIMAC_FRAMER_CONF_ENABLED
-#define CONTIKIMAC_FRAMER_ENABLED CONTIKIMAC_FRAMER_CONF_ENABLED
-#else /* CONTIKIMAC_FRAMER_CONF_ENABLED */
-#define CONTIKIMAC_FRAMER_ENABLED 0
-#endif /* CONTIKIMAC_FRAMER_CONF_ENABLED */
+struct leaky_bucket {
+  uint16_t capacity;
+  clock_time_t leakage_duration;
+  uint16_t filling_level;
+  struct ctimer leakage_timer;
+};
 
-extern const struct framer contikimac_framer;
+/**
+ * \param lb pointer the bucket in question
+ * \param capacity number of drops that fit into the bucket
+ * \param leakage_duration how long it takes until one drop leaks
+ */
+void leaky_bucket_init(struct leaky_bucket *lb,
+    uint16_t capacity,
+    clock_time_t leakage_duration);
 
-#endif /* CONTIKIMAC_FRAMER_H_ */
+/**
+ * \brief pours a drop in the bucket
+ */
+void leaky_bucket_pour(struct leaky_bucket *lb,
+    uint16_t drop_size);
+
+/**
+ * \return whether the bucket is full
+ */
+int leaky_bucket_is_full(struct leaky_bucket *lb);
+
+#endif /* LEAKY_BUCKET_H_ */
