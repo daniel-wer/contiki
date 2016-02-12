@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Hasso-Plattner-Institut.
+ * Copyright (c) 2016, Hasso-Plattner-Institut.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,51 +32,26 @@
 
 /**
  * \file
- *         Header file for the asynchronous radio API
+ *         Autoconfigures POTR
  * \author
  *         Konrad Krentz <konrad.krentz@gmail.com>
  */
 
-#ifndef RADIO_ASYNC_H_
-#define RADIO_ASYNC_H_
-
-#include "contiki.h"
-#include "dev/radio.h"
-
-#ifdef RADIO_ASYNC_CONF_WITH_CHECKSUM
-#define RADIO_ASYNC_WITH_CHECKSUM RADIO_ASYNC_CONF_WITH_CHECKSUM
-#else /* RADIO_ASYNC_CONF_WITH_CHECKSUM */
-#define RADIO_ASYNC_WITH_CHECKSUM 1
-#endif /* RADIO_ASYNC_CONF_WITH_CHECKSUM */
-
-#if RADIO_ASYNC_WITH_CHECKSUM
-#define RADIO_ASYNC_CHECKSUM_LEN 2
-#else /* RADIO_ASYNC_WITH_CHECKSUM */
-#define RADIO_ASYNC_CHECKSUM_LEN 0
-#endif /* RADIO_ASYNC_WITH_CHECKSUM */
-
-struct radio_async_driver {
-  void (* init)(void);
-  int (* prepare)(const void *payload, unsigned short payload_len);
-  int (* transmit)(void);
-  int (* read)(void);
-  int (* receiving_packet)(void);
-  int (* pending_packet)(void);
-  void (* on)(void);
-  void (* off)(void);
-  radio_result_t (* get_value)(radio_param_t param, radio_value_t *value);
-  radio_result_t (* set_value)(radio_param_t param, radio_value_t value);
-  radio_result_t (* get_object)(radio_param_t param, void *dest, size_t size);
-  radio_result_t (* set_object)(radio_param_t param, const void *src, size_t size);
-  void (* flushrx)(void);
-  uint8_t (* read_phy_header)(void);
-  uint8_t (* read_phy_header_and_set_datalen)(void);
-  void (* read_raw)(uint8_t *buf, uint8_t bytes);
-  int (* read_payload)(uint8_t bytes);
-  uint8_t (* remaining_payload_bytes)(void);
-  int (* read_footer)(void);
-  int8_t (* get_rssi)(void);
-  void (* reprepare)(uint8_t offset, uint8_t *src, uint8_t len);
-};
-
-#endif /* RADIO_ASYNC_H_ */
+#undef POTR_CONF_ENABLED
+#define POTR_CONF_ENABLED 1
+#undef AKES_NBR_CONF_WITH_GROUP_KEYS
+#define AKES_NBR_CONF_WITH_GROUP_KEYS 1
+#undef NETSTACK_CONF_RDC
+#define NETSTACK_CONF_RDC secrdc_driver
+#undef SECRDC_CONF_ENABLED
+#define SECRDC_CONF_ENABLED 1
+#undef AES_128_CONF_WITH_LOCKING
+#define AES_128_CONF_WITH_LOCKING 1
+#undef NBR_TABLE_CONF_WITH_LOCKING
+#define NBR_TABLE_CONF_WITH_LOCKING 1
+#undef AKES_NBR_CONF_WITH_LOCKING
+#define AKES_NBR_CONF_WITH_LOCKING 1
+#undef RADIO_ASYNC_CONF_WITH_CHECKSUM
+#define RADIO_ASYNC_CONF_WITH_CHECKSUM 0
+#undef SICSLOWPAN_CONF_MAC_MAX_PAYLOAD
+#define SICSLOWPAN_CONF_MAC_MAX_PAYLOAD 127

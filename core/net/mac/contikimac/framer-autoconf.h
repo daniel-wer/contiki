@@ -32,51 +32,46 @@
 
 /**
  * \file
- *         Header file for the asynchronous radio API
+ *         Autoconfigures FRAMERs
  * \author
  *         Konrad Krentz <konrad.krentz@gmail.com>
  */
 
-#ifndef RADIO_ASYNC_H_
-#define RADIO_ASYNC_H_
+#ifdef ADAPTIVESEC_CONF_ENABLED
+#if ADAPTIVESEC_CONF_ENABLED
+#undef NETSTACK_CONF_FRAMER
+#define NETSTACK_CONF_FRAMER adaptivesec_framer
+#endif
+#endif
 
-#include "contiki.h"
-#include "dev/radio.h"
+#ifdef SECRDC_CONF_ENABLED
+#if SECRDC_CONF_ENABLED
+#undef NETSTACK_CONF_FRAMER
+#define NETSTACK_CONF_FRAMER contikimac_framer
+#undef CONTIKIMAC_FRAMER_CONF_SHORTEST_PACKET_SIZE
+#define CONTIKIMAC_FRAMER_CONF_SHORTEST_PACKET_SIZE 28
+#undef CONTIKIMAC_FRAMER_CONF_ENABLED
+#define CONTIKIMAC_FRAMER_CONF_ENABLED 1
+#undef CONTIKIMAC_FRAMER_CONF_DECORATED_FRAMER
+#define CONTIKIMAC_FRAMER_CONF_DECORATED_FRAMER adaptivesec_framer
+#undef ADAPTIVESEC_CONF_DECORATED_FRAMER
+#define ADAPTIVESEC_CONF_DECORATED_FRAMER framer_802154
+#endif
+#endif
 
-#ifdef RADIO_ASYNC_CONF_WITH_CHECKSUM
-#define RADIO_ASYNC_WITH_CHECKSUM RADIO_ASYNC_CONF_WITH_CHECKSUM
-#else /* RADIO_ASYNC_CONF_WITH_CHECKSUM */
-#define RADIO_ASYNC_WITH_CHECKSUM 1
-#endif /* RADIO_ASYNC_CONF_WITH_CHECKSUM */
-
-#if RADIO_ASYNC_WITH_CHECKSUM
-#define RADIO_ASYNC_CHECKSUM_LEN 2
-#else /* RADIO_ASYNC_WITH_CHECKSUM */
-#define RADIO_ASYNC_CHECKSUM_LEN 0
-#endif /* RADIO_ASYNC_WITH_CHECKSUM */
-
-struct radio_async_driver {
-  void (* init)(void);
-  int (* prepare)(const void *payload, unsigned short payload_len);
-  int (* transmit)(void);
-  int (* read)(void);
-  int (* receiving_packet)(void);
-  int (* pending_packet)(void);
-  void (* on)(void);
-  void (* off)(void);
-  radio_result_t (* get_value)(radio_param_t param, radio_value_t *value);
-  radio_result_t (* set_value)(radio_param_t param, radio_value_t value);
-  radio_result_t (* get_object)(radio_param_t param, void *dest, size_t size);
-  radio_result_t (* set_object)(radio_param_t param, const void *src, size_t size);
-  void (* flushrx)(void);
-  uint8_t (* read_phy_header)(void);
-  uint8_t (* read_phy_header_and_set_datalen)(void);
-  void (* read_raw)(uint8_t *buf, uint8_t bytes);
-  int (* read_payload)(uint8_t bytes);
-  uint8_t (* remaining_payload_bytes)(void);
-  int (* read_footer)(void);
-  int8_t (* get_rssi)(void);
-  void (* reprepare)(uint8_t offset, uint8_t *src, uint8_t len);
-};
-
-#endif /* RADIO_ASYNC_H_ */
+#ifdef POTR_CONF_ENABLED
+#if POTR_CONF_ENABLED
+#undef NETSTACK_CONF_FRAMER
+#define NETSTACK_CONF_FRAMER contikimac_framer
+#undef CONTIKIMAC_FRAMER_CONF_SHORTEST_PACKET_SIZE
+#define CONTIKIMAC_FRAMER_CONF_SHORTEST_PACKET_SIZE 30
+#undef CONTIKIMAC_FRAMER_CONF_ENABLED
+#define CONTIKIMAC_FRAMER_CONF_ENABLED 1
+#undef CONTIKIMAC_FRAMER_CONF_DECORATED_FRAMER
+#define CONTIKIMAC_FRAMER_CONF_DECORATED_FRAMER adaptivesec_framer
+#undef ADAPTIVESEC_CONF_DECORATED_FRAMER
+#define ADAPTIVESEC_CONF_DECORATED_FRAMER potr_framer
+#undef POTR_CONF_WITH_CONTIKIMAC_FRAMER
+#define POTR_CONF_WITH_CONTIKIMAC_FRAMER 1
+#endif
+#endif

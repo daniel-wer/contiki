@@ -42,7 +42,16 @@
 #define CCM_STAR_PACKETBUF_H_
 
 #include "lib/ccm-star.h"
+#include "net/mac/contikimac/ilos.h"
 
-void ccm_star_packetbuf_set_nonce(uint8_t *nonce, int forward);
+void ccm_star_packetbuf_set_nonce(uint8_t *nonce, int forward
+#if ILOS_ENABLED
+    , struct secrdc_phase *phase
+#endif /* ILOS_ENABLED */
+);
+#if ILOS_ENABLED
+ilos_wake_up_counter_t ccm_star_packetbuf_predict_wake_up_counter(struct secrdc_phase *phase);
+#endif /* ILOS_ENABLED */
+void ccm_star_packetbuf_to_acknowledgement_nonce(uint8_t *nonce);
 
 #endif /* CCM_STAR_PACKETBUF_H_ */

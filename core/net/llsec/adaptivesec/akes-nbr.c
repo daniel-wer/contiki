@@ -127,6 +127,12 @@ akes_nbr_count(enum akes_nbr_status status)
   return count;
 }
 /*---------------------------------------------------------------------------*/
+int
+akes_nbr_free_slots(void)
+{
+  return memb_numfree(&nbrs_memb);
+}
+/*---------------------------------------------------------------------------*/
 #if AKES_NBR_WITH_INDICES
 static void
 init_local_index(struct akes_nbr_entry *entry)
@@ -181,7 +187,9 @@ akes_nbr_new(enum akes_nbr_status status)
     return NULL;
   }
   nbr_table_lock(entries_table, entry);
+#if !ILOS_ENABLED
   anti_replay_init_info(&entry->refs[status]->anti_replay_info);
+#endif /* !ILOS_ENABLED */
   if(status) {
     entry->refs[status]->meta = memb_alloc(&tentatives_memb);
     if(!entry->refs[status]->meta) {
@@ -190,6 +198,9 @@ akes_nbr_new(enum akes_nbr_status status)
       return NULL;
     }
   }
+#if SECRDC_WITH_ORIGINAL_PHASE_LOCK
+  entry->refs[status]->phase.t = 0;
+#endif /* SECRDC_WITH_ORIGINAL_PHASE_LOCK */
   AKES_NBR_RELEASE_LOCK();
   return entry;
 }
@@ -197,9 +208,24 @@ akes_nbr_new(enum akes_nbr_status status)
 void
 akes_nbr_update(struct akes_nbr *nbr, uint8_t *data, int cmd_id)
 {
+#if SECRDC_WITH_SECURE_PHASE_LOCK
+  rtimer_clock_t t1;
+#endif /* SECRDC_WITH_SECURE_PHASE_LOCK */
+
   switch(cmd_id) {
   case AKES_ACK_IDENTIFIER:
+#if SECRDC_WITH_SECURE_PHASE_LOCK
+    t1 = nbr->meta->t1;
+#endif /* SECRDC_WITH_SECURE_PHASE_LOCK */
     free_tentative_metadata(nbr);
+#if ILOS_ENABLED
+    nbr->phase.his_wake_up_counter_at_t = ilos_parse_wake_up_counter(data);
+    data += ILOS_WAKE_UP_COUNTER_LEN;
+#endif /* ILOS_ENABLED */
+#if SECRDC_WITH_SECURE_PHASE_LOCK
+    nbr->phase.t = t1 - data[0];
+    data += 1;
+#endif /* SECRDC_WITH_SECURE_PHASE_LOCK */
     nbr->sent_authentic_hello = 1;
     break;
   case AKES_HELLOACK_IDENTIFIER:
@@ -207,11 +233,15 @@ akes_nbr_update(struct akes_nbr *nbr, uint8_t *data, int cmd_id)
     break;
   }
 
+#if !ILOS_ENABLED
   anti_replay_was_replayed(&nbr->anti_replay_info);
+#endif /* !ILOS_ENABLED */
 #if ANTI_REPLAY_WITH_SUPPRESSION
   nbr->last_was_broadcast = 1;
 #endif /* ANTI_REPLAY_WITH_SUPPRESSION */
+#if !ILOS_ENABLED
   akes_nbr_prolong(nbr);
+#endif /* !ILOS_ENABLED */
 
 #if AKES_NBR_WITH_INDICES
   nbr->foreign_index = data[0];
@@ -226,6 +256,17 @@ akes_nbr_update(struct akes_nbr *nbr, uint8_t *data, int cmd_id)
     data += 4;
   }
 #endif /* ANTI_REPLAY_WITH_SUPPRESSION */
+#if POTR_ENABLED
+  switch(cmd_id) {
+  case AKES_HELLOACK_IDENTIFIER:
+  case AKES_ACK_IDENTIFIER:
+    nbr->my_unicast_seqno = 0;
+    nbr->his_unicast_seqno = 0;
+    break;
+  default:
+    break;
+  }
+#endif /* POTR_ENABLED */
 #if AKES_NBR_WITH_GROUP_KEYS
   switch(cmd_id) {
   case AKES_HELLOACK_IDENTIFIER:
@@ -234,6 +275,10 @@ akes_nbr_update(struct akes_nbr *nbr, uint8_t *data, int cmd_id)
     break;
   }
 #endif /* AKES_NBR_WITH_GROUP_KEYS */
+
+#if SECRDC_WITH_ORIGINAL_PHASE_LOCK
+  nbr->phase.t = 0;
+#endif /* SECRDC_WITH_ORIGINAL_PHASE_LOCK */
 
 #if DEBUG
   {
@@ -271,6 +316,7 @@ akes_nbr_update(struct akes_nbr *nbr, uint8_t *data, int cmd_id)
 #endif /* DEBUG */
 }
 /*---------------------------------------------------------------------------*/
+#if !ILOS_ENABLED
 void
 akes_nbr_do_prolong(struct akes_nbr *nbr, uint16_t seconds)
 {
@@ -295,6 +341,7 @@ akes_nbr_prolong(struct akes_nbr *nbr)
 #endif /* ANTI_REPLAY_WITH_SUPPRESSION */
   akes_nbr_do_prolong(nbr, LIFETIME);
 }
+#endif /* !ILOS_ENABLED */
 /*---------------------------------------------------------------------------*/
 struct akes_nbr_entry *
 akes_nbr_get_entry(const linkaddr_t *addr)
@@ -330,7 +377,25 @@ akes_nbr_delete(struct akes_nbr_entry *entry, enum akes_nbr_status status)
 int
 akes_nbr_is_expired(struct akes_nbr_entry *entry, enum akes_nbr_status status)
 {
-  return entry->refs[status]->expiration_time < clock_seconds();
+#if ILOS_ENABLED
+  if(status) {
+    return entry->tentative->meta->expiration_time < clock_seconds();
+  }
+#else /* ILOS_ENABLED */
+  if(entry->refs[status]->expiration_time < clock_seconds()) {
+    return 1;
+  }
+#endif /* ILOS_ENABLED */
+#if SECRDC_WITH_SECURE_PHASE_LOCK
+#if !ILOS_ENABLED
+  if(status) {
+    return 0;
+  }
+#endif /* !ILOS_ENABLED */
+  return rtimer_delta(entry->refs[status]->phase.t, RTIMER_NOW()) >= SECRDC_UPDATE_THRESHOLD;
+#else /* SECRDC_WITH_SECURE_PHASE_LOCK */
+  return 0;
+#endif /* SECRDC_WITH_SECURE_PHASE_LOCK */
 }
 /*---------------------------------------------------------------------------*/
 void

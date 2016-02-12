@@ -40,7 +40,9 @@
 #include "net/llsec/adaptivesec/adaptivesec.h"
 #include "net/llsec/adaptivesec/akes-trickle.h"
 #include "net/llsec/adaptivesec/akes.h"
+#include "net/llsec/adaptivesec/potr.h"
 #include "net/llsec/ccm-star-packetbuf.h"
+#include "net/mac/contikimac/secrdc.h"
 #include "net/cmd-broker.h"
 #include "net/netstack.h"
 #include "net/packetbuf.h"
@@ -90,7 +92,9 @@ adaptivesec_get_sec_lvl(void)
     case AKES_ACK_IDENTIFIER:
       return AKES_ACKS_SEC_LVL;
     case AKES_UPDATE_IDENTIFIER:
+#if !ILOS_ENABLED
     case AKES_UPDATEACK_IDENTIFIER:
+#endif /* !ILOS_ENABLED */
       return AKES_UPDATES_SEC_LVL;
     }
     break;
@@ -103,6 +107,7 @@ adaptivesec_get_sec_lvl(void)
   return 0;
 }
 /*---------------------------------------------------------------------------*/
+#if !ILOS_ENABLED
 void
 adaptivesec_add_security_header(struct akes_nbr *receiver)
 {
@@ -113,6 +118,7 @@ adaptivesec_add_security_header(struct akes_nbr *receiver)
   packetbuf_set_attr(PACKETBUF_ATTR_SECURITY_LEVEL, adaptivesec_get_sec_lvl());
 #endif /* !ANTI_REPLAY_WITH_SUPPRESSION */
 }
+#endif /* !ILOS_ENABLED */
 /*---------------------------------------------------------------------------*/
 uint8_t *
 adaptivesec_prepare_command(uint8_t cmd_id, const linkaddr_t *dest)
@@ -162,8 +168,21 @@ send(mac_callback_t sent, void *ptr)
 #endif /* ANTI_REPLAY_WITH_SUPPRESSION */
   }
 
+#if ILOS_ENABLED
+  if(receiver) {
+    potr_set_seqno(receiver);
+  }
+#elif POTR_ENABLED
+  if(receiver) {
+    potr_set_seqno(receiver);
+  } else {
+    adaptivesec_add_security_header(receiver);
+    anti_replay_suppress_counter();
+  }
+#else
   adaptivesec_add_security_header(receiver);
   anti_replay_suppress_counter();
+#endif
 
   ADAPTIVESEC_STRATEGY.send(sent, ptr);
 }
@@ -172,6 +191,38 @@ static int
 create(void)
 {
   int result;
+#if POTR_ENABLED && !ILOS_ENABLED
+  struct akes_nbr_entry *entry;
+  struct akes_nbr *nbr;
+  int is_helloack;
+#if ANTI_REPLAY_WITH_SUPPRESSION
+  int is_ack;
+  uint8_t *dataptr;
+  uint8_t offset;
+#endif /* ANTI_REPLAY_WITH_SUPPRESSION */
+#endif /* POTR_ENABLED && !ILOS_ENABLED */
+
+#if POTR_ENABLED && !ILOS_ENABLED
+  /* increment frame counter of unicasts in each transmission and retransmission */
+  if(!packetbuf_holds_broadcast()) {
+    entry = akes_nbr_get_receiver_entry();
+    is_helloack = potr_is_helloack();
+    nbr = is_helloack ? entry->tentative : entry->permanent;
+    adaptivesec_add_security_header(nbr);
+#if ANTI_REPLAY_WITH_SUPPRESSION
+    is_ack = potr_is_ack();
+    if(is_helloack || is_ack) {
+      /* update contents of HELLOACKs and ACKs */
+      dataptr = packetbuf_dataptr();
+      offset = 1 /* command frame identifier */
+          + (is_helloack ? AKES_NBR_CHALLENGE_LEN : 0)
+          + (SECRDC_WITH_SECURE_PHASE_LOCK && is_ack ? AKES_NBR_CHALLENGE_LEN + 2 : 0)
+          + (AKES_NBR_WITH_INDICES ? 1 : 0);
+      anti_replay_write_counter(dataptr + offset);
+    }
+#endif /* ANTI_REPLAY_WITH_SUPPRESSION */
+  }
+#endif /* POTR_ENABLED && !ILOS_ENABLED */
 
   result = DECORATED_FRAMER.create();
   if(result == FRAMER_FAILED) {
@@ -198,7 +249,11 @@ adaptivesec_mic_len(void)
 }
 /*---------------------------------------------------------------------------*/
 void
-adaptivesec_aead(uint8_t *key, int shall_encrypt, uint8_t *result, int forward)
+adaptivesec_aead(uint8_t *key, int shall_encrypt, uint8_t *result, int forward
+#if ILOS_ENABLED
+    , struct secrdc_phase *phase
+#endif /* ILOS_ENABLED */
+    )
 {
   uint8_t nonce[CCM_STAR_NONCE_LENGTH];
   uint8_t *m;
@@ -206,7 +261,11 @@ adaptivesec_aead(uint8_t *key, int shall_encrypt, uint8_t *result, int forward)
   uint8_t *a;
   uint8_t a_len;
 
-  ccm_star_packetbuf_set_nonce(nonce, forward);
+  ccm_star_packetbuf_set_nonce(nonce, forward
+#if ILOS_ENABLED
+      , phase
+#endif /* ILOS_ENABLED */
+  );
   a = packetbuf_hdrptr();
   if(shall_encrypt) {
 #if AKES_NBR_WITH_GROUP_KEYS && PACKETBUF_WITH_UNENCRYPTED_BYTES
@@ -233,14 +292,22 @@ adaptivesec_aead(uint8_t *key, int shall_encrypt, uint8_t *result, int forward)
 }
 /*---------------------------------------------------------------------------*/
 int
-adaptivesec_verify(uint8_t *key)
+adaptivesec_verify(uint8_t *key
+#if ILOS_ENABLED
+    , struct secrdc_phase *phase
+#endif /* ILOS_ENABLED */
+    )
 {
   int shall_decrypt;
   uint8_t generated_mic[MAX(ADAPTIVESEC_UNICAST_MIC_LEN, ADAPTIVESEC_BROADCAST_MIC_LEN)];
 
   shall_decrypt = adaptivesec_get_sec_lvl() & (1 << 2);
   packetbuf_set_datalen(packetbuf_datalen() - adaptivesec_mic_len());
-  adaptivesec_aead(key, shall_decrypt, generated_mic, 0);
+  adaptivesec_aead(key, shall_decrypt, generated_mic, 0
+#if ILOS_ENABLED
+      , phase
+#endif /* ILOS_ENABLED */
+  );
 
   return memcmp(generated_mic,
       ((uint8_t *) packetbuf_dataptr()) + packetbuf_datalen(),
@@ -252,6 +319,9 @@ input(void)
 {
   struct akes_nbr_entry *entry;
 
+#if LLSEC802154_USES_AUX_HEADER && POTR_ENABLED
+  packetbuf_set_attr(PACKETBUF_ATTR_SECURITY_LEVEL, adaptivesec_get_sec_lvl());
+#endif /* LLSEC802154_USES_AUX_HEADER && POTR_ENABLED */
   switch(packetbuf_attr(PACKETBUF_ATTR_FRAME_TYPE)) {
   case FRAME802154_CMDFRAME:
     cmd_broker_publish();
@@ -263,15 +333,27 @@ input(void)
       return;
     }
 
-#if ANTI_REPLAY_WITH_SUPPRESSION
+#if ANTI_REPLAY_WITH_SUPPRESSION && !POTR_ENABLED
     anti_replay_restore_counter(&entry->permanent->anti_replay_info);
-#endif /* ANTI_REPLAY_WITH_SUPPRESSION */
+#endif /* ANTI_REPLAY_WITH_SUPPRESSION && !POTR_ENABLED */
 
-    if(ADAPTIVESEC_STRATEGY.verify(entry->permanent) != ADAPTIVESEC_VERIFY_SUCCESS) {
+    if(
+#if SECRDC_WITH_SECURE_PHASE_LOCK
+        packetbuf_holds_broadcast() &&
+#endif /* SECRDC_WITH_SECURE_PHASE_LOCK */
+        ADAPTIVESEC_STRATEGY.verify(entry->permanent) != ADAPTIVESEC_VERIFY_SUCCESS) {
       return;
     }
 
+#if POTR_ENABLED
+    if(potr_received_duplicate()) {
+      PRINTF("adaptivesec: Duplicate\n");
+      return;
+    }
+#endif /* POTR_ENABLED */
+#if !ILOS_ENABLED
     akes_nbr_prolong(entry->permanent);
+#endif /* !ILOS_ENABLED */
 
     NETSTACK_NETWORK.input();
     break;

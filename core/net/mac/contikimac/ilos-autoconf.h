@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Hasso-Plattner-Institut.
+ * Copyright (c) 2016, Hasso-Plattner-Institut.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,51 +32,20 @@
 
 /**
  * \file
- *         Header file for the asynchronous radio API
+ *         Autoconfigures ILOS
  * \author
  *         Konrad Krentz <konrad.krentz@gmail.com>
  */
 
-#ifndef RADIO_ASYNC_H_
-#define RADIO_ASYNC_H_
-
-#include "contiki.h"
-#include "dev/radio.h"
-
-#ifdef RADIO_ASYNC_CONF_WITH_CHECKSUM
-#define RADIO_ASYNC_WITH_CHECKSUM RADIO_ASYNC_CONF_WITH_CHECKSUM
-#else /* RADIO_ASYNC_CONF_WITH_CHECKSUM */
-#define RADIO_ASYNC_WITH_CHECKSUM 1
-#endif /* RADIO_ASYNC_CONF_WITH_CHECKSUM */
-
-#if RADIO_ASYNC_WITH_CHECKSUM
-#define RADIO_ASYNC_CHECKSUM_LEN 2
-#else /* RADIO_ASYNC_WITH_CHECKSUM */
-#define RADIO_ASYNC_CHECKSUM_LEN 0
-#endif /* RADIO_ASYNC_WITH_CHECKSUM */
-
-struct radio_async_driver {
-  void (* init)(void);
-  int (* prepare)(const void *payload, unsigned short payload_len);
-  int (* transmit)(void);
-  int (* read)(void);
-  int (* receiving_packet)(void);
-  int (* pending_packet)(void);
-  void (* on)(void);
-  void (* off)(void);
-  radio_result_t (* get_value)(radio_param_t param, radio_value_t *value);
-  radio_result_t (* set_value)(radio_param_t param, radio_value_t value);
-  radio_result_t (* get_object)(radio_param_t param, void *dest, size_t size);
-  radio_result_t (* set_object)(radio_param_t param, const void *src, size_t size);
-  void (* flushrx)(void);
-  uint8_t (* read_phy_header)(void);
-  uint8_t (* read_phy_header_and_set_datalen)(void);
-  void (* read_raw)(uint8_t *buf, uint8_t bytes);
-  int (* read_payload)(uint8_t bytes);
-  uint8_t (* remaining_payload_bytes)(void);
-  int (* read_footer)(void);
-  int8_t (* get_rssi)(void);
-  void (* reprepare)(uint8_t offset, uint8_t *src, uint8_t len);
-};
-
-#endif /* RADIO_ASYNC_H_ */
+#undef ILOS_CONF_ENABLED
+#define ILOS_CONF_ENABLED 1
+#undef LLSEC802154_CONF_USES_AUX_HEADER
+#define LLSEC802154_CONF_USES_AUX_HEADER 0
+#undef ANTI_REPLAY_CONF_WITH_SUPPRESSION
+#define ANTI_REPLAY_CONF_WITH_SUPPRESSION 0
+#undef AKES_NBR_CONF_WITH_INDICES
+#define AKES_NBR_CONF_WITH_INDICES 0
+#undef LLSEC802154_CONF_USES_FRAME_COUNTER
+#define LLSEC802154_CONF_USES_FRAME_COUNTER 0
+#undef SECRDC_CONF_WITH_INTER_COLLISION_AVOIDANCE
+#define SECRDC_CONF_WITH_INTER_COLLISION_AVOIDANCE 0
