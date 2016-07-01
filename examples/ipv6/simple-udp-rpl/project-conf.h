@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Swedish Institute of Computer Science.
+ * Copyright (c) 2016, Hasso-Plattner-Institut.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,35 +25,19 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * This file is part of the Contiki operating system.
+ *
  */
 
-#ifndef PROJECT_CONF_H_
-#define PROJECT_CONF_H_
+#ifndef PROJECT_SIMPLE_UDP_CONF_H_
+#define PROJECT_SIMPLE_UDP_CONF_H_
 
-#undef UIP_CONF_BUFFER_SIZE
-#define UIP_CONF_BUFFER_SIZE    140
-
-#undef UIP_CONF_ROUTER
-#define UIP_CONF_ROUTER                 0
-
-#define CMD_CONF_OUTPUT slip_radio_cmd_output
-
-/* add the cmd_handler_cc2420 + some sensors if TARGET_SKY */
-#ifdef CONTIKI_TARGET_SKY
-#define CMD_CONF_HANDLERS slip_radio_cmd_handler,cmd_handler_cc2420
-#define SLIP_RADIO_CONF_SENSORS slip_radio_sky_sensors
-/* add the cmd_handler_rf230 if TARGET_NOOLIBERRY. Other RF230 platforms can be added */
-#elif CONTIKI_TARGET_NOOLIBERRY
-#define CMD_CONF_HANDLERS slip_radio_cmd_handler,cmd_handler_rf230
-#elif CONTIKI_TARGET_ECONOTAG
-#define CMD_CONF_HANDLERS slip_radio_cmd_handler,cmd_handler_mc1322x
-#else
-#define CMD_CONF_HANDLERS slip_radio_cmd_handler
+#if 0
+/* enable the software implementation of AES-128 */
+#undef AES_128_CONF
+#define AES_128_CONF aes_128_driver
 #endif
-
-/* SLIP does not work otherwise */
-#undef LPM_CONF_MAX_PM
-#define LPM_CONF_MAX_PM 0
 
 /* configure RDC layer */
 #if 1
@@ -110,11 +94,12 @@
 /* configure FRAMERs */
 #include "net/mac/contikimac/framer-autoconf.h"
 
-#undef NETSTACK_CONF_NETWORK
-#define NETSTACK_CONF_NETWORK slipnet_driver
-
 /* set a seeder */
 #undef CSPRNG_CONF_SEEDER
-#define CSPRNG_CONF_SEEDER iq_seeder
+#define CSPRNG_CONF_SEEDER cc2538_mix_seeder
 
-#endif /* PROJECT_CONF_H_ */
+/* disable TCP */
+#undef UIP_CONF_TCP
+#define UIP_CONF_TCP 0
+
+#endif /* PROJECT_SIMPLE_UDP_CONF_H_ */

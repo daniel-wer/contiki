@@ -4,6 +4,9 @@ APPS = slip-cmd
 
 CONTIKI=../../..
 
+MODULES += core/net/llsec/adaptivesec
+MODULES += core/net/mac/contikimac
+
 #linker optimizations
 SMALL=1
 

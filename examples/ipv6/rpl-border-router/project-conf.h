@@ -64,4 +64,79 @@
 #define WEBSERVER_CONF_CFS_CONNS 2
 #endif
 
+/* SLIP does not work otherwise */
+#undef LPM_CONF_MAX_PM
+#define LPM_CONF_MAX_PM 0
+
+#if 0
+/* enable the software implementation of AES-128 */
+#undef AES_128_CONF
+#define AES_128_CONF aes_128_driver
+#endif
+
+/* configure RDC layer */
+#if 1
+#include "cpu/cc2538/dev/cc2538-rf-async-autoconf.h"
+#include "net/mac/contikimac/secrdc-autoconf.h"
+#elif 0
+#undef CONTIKIMAC_CONF_COMPOWER
+#define CONTIKIMAC_CONF_COMPOWER 0
+#undef RDC_CONF_HARDWARE_CSMA
+#define RDC_CONF_HARDWARE_CSMA 1
+#undef NETSTACK_CONF_RDC
+#define NETSTACK_CONF_RDC contikimac_driver
+#else
+#undef NETSTACK_CONF_RDC
+#define NETSTACK_CONF_RDC nullrdc_driver
+#endif
+
+/* configure MAC layer */
+#if 1
+#undef NETSTACK_CONF_MAC
+#define NETSTACK_CONF_MAC csma_driver
+#undef CSMA_CONF_MAX_FRAME_RETRIES
+#define CSMA_CONF_MAX_FRAME_RETRIES 3
+#undef CSMA_CONF_MAX_NEIGHBOR_QUEUES
+#define CSMA_CONF_MAX_NEIGHBOR_QUEUES 5
+#else
+#undef NETSTACK_CONF_MAC
+#define NETSTACK_CONF_MAC nullmac_driver
+#endif
+
+/* configure LLSEC layer */
+#if 1
+#undef ADAPTIVESEC_CONF_UNICAST_SEC_LVL
+#define ADAPTIVESEC_CONF_UNICAST_SEC_LVL 2
+#undef ADAPTIVESEC_CONF_BROADCAST_SEC_LVL
+#define ADAPTIVESEC_CONF_BROADCAST_SEC_LVL 2
+#undef LLSEC802154_CONF_USES_AUX_HEADER
+#define LLSEC802154_CONF_USES_AUX_HEADER 0
+#undef NBR_TABLE_CONF_MAX_NEIGHBORS
+#define NBR_TABLE_CONF_MAX_NEIGHBORS 14
+#if 0
+#include "net/llsec/adaptivesec/coresec-autoconf.h"
+#else
+#include "net/llsec/adaptivesec/noncoresec-autoconf.h"
+#endif
+#if 1
+#include "net/llsec/adaptivesec/potr-autoconf.h"
+#if 1
+#include "net/mac/contikimac/ilos-autoconf.h"
+#endif
+#endif
+#endif
+
+/* configure FRAMERs */
+#include "net/mac/contikimac/framer-autoconf.h"
+
+/* set a seeder */
+#undef CSPRNG_CONF_SEEDER
+#define CSPRNG_CONF_SEEDER iq_seeder
+
+/* disable TCP and UDP */
+#undef UIP_CONF_TCP
+#define UIP_CONF_TCP 0
+#undef UIP_CONF_UDP
+#define UIP_CONF_UDP 0
+
 #endif /* PROJECT_ROUTER_CONF_H_ */
