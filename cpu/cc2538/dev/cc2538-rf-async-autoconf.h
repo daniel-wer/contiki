@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Swedish Institute of Computer Science.
+ * Copyright (c) 2017, Hasso-Plattner-Institut.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,21 +32,16 @@
 
 /**
  * \file
- *         Initialiation file for the Contiki low-layer network stack (NETSTACK)
+ *         Autoconfigures the asynchronous RADIO driver.
  * \author
- *         Adam Dunkels <adam@sics.se>
+ *         Konrad Krentz <konrad.krentz@gmail.com>
  */
 
-#include "net/netstack.h"
-/*---------------------------------------------------------------------------*/
-void
-netstack_init(void)
-{
-  NETSTACK_RADIO.init();
-  NETSTACK_RADIO_ASYNC.init();
-  NETSTACK_RDC.init();
-  NETSTACK_MAC.init();
-  NETSTACK_LLSEC.init();
-  NETSTACK_NETWORK.init();
-}
-/*---------------------------------------------------------------------------*/
+#undef NETSTACK_CONF_RADIO
+#define NETSTACK_CONF_RADIO nullradio_driver
+#undef NETSTACK_CONF_RADIO_ASYNC
+#define NETSTACK_CONF_RADIO_ASYNC cc2538_rf_async_driver
+#undef STARTUP_GCC_CONF_RFCORE_RXTX
+#define STARTUP_GCC_CONF_RFCORE_RXTX cc2538_rf_async_rxtx_isr
+#undef STARTUP_GCC_CONF_RFCORE_ERROR
+#define STARTUP_GCC_CONF_RFCORE_ERROR cc2538_rf_async_error_isr

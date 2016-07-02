@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Swedish Institute of Computer Science.
+ * Copyright (c) 2017, Hasso-Plattner-Institut.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,21 +32,39 @@
 
 /**
  * \file
- *         Initialiation file for the Contiki low-layer network stack (NETSTACK)
+ *         Header file for the asynchronous radio API
  * \author
- *         Adam Dunkels <adam@sics.se>
+ *         Konrad Krentz <konrad.krentz@gmail.com>
  */
 
-#include "net/netstack.h"
-/*---------------------------------------------------------------------------*/
-void
-netstack_init(void)
-{
-  NETSTACK_RADIO.init();
-  NETSTACK_RADIO_ASYNC.init();
-  NETSTACK_RDC.init();
-  NETSTACK_MAC.init();
-  NETSTACK_LLSEC.init();
-  NETSTACK_NETWORK.init();
-}
-/*---------------------------------------------------------------------------*/
+#ifndef RADIO_ASYNC_H_
+#define RADIO_ASYNC_H_
+
+#include "contiki.h"
+#include "dev/radio.h"
+
+struct radio_async_driver {
+  void (* init)(void);
+  int (* prepare)(const void *payload, unsigned short payload_len);
+  int (* transmit)(void);
+  int (* read)(void);
+  int (* receiving_packet)(void);
+  int (* pending_packet)(void);
+  void (* on)(void);
+  void (* off)(void);
+  radio_result_t (* get_value)(radio_param_t param, radio_value_t *value);
+  radio_result_t (* set_value)(radio_param_t param, radio_value_t value);
+  radio_result_t (* get_object)(radio_param_t param, void *dest, size_t size);
+  radio_result_t (* set_object)(radio_param_t param, const void *src, size_t size);
+  void (* flushrx)(void);
+  uint8_t (* read_phy_header)(void);
+  uint8_t (* read_phy_header_and_set_datalen)(void);
+  void (* read_raw)(uint8_t *buf, uint8_t bytes);
+  int (* read_payload)(uint8_t bytes);
+  uint8_t (* remaining_payload_bytes)(void);
+  int (* read_footer)(void);
+  int8_t (* get_rssi)(void);
+  void (* reprepare)(uint8_t offset, uint8_t *src, uint8_t len);
+};
+
+#endif /* RADIO_ASYNC_H_ */
