@@ -59,6 +59,12 @@
 #define UPDATEACK_WAITING_PERIOD (5) /* seconds */
 #endif /* AKES_DELETE_CONF_UPDATEACK_WAITING_PERIOD */
 
+#ifdef AKES_DELETE_CONF_ENABLED
+#define ENABLED AKES_DELETE_CONF_ENABLED
+#else /* AKES_DELETE_CONF_ENABLED */
+#define ENABLED 1
+#endif /* AKES_DELETE_CONF_ENABLED */
+
 #define DEBUG 0
 #if DEBUG
 #include <stdio.h>
@@ -67,6 +73,7 @@
 #define PRINTF(...)
 #endif /* DEBUG */
 
+#if ENABLED
 PROCESS(delete_process, "delete_process");
 
 /*---------------------------------------------------------------------------*/
@@ -138,4 +145,18 @@ akes_delete_init(void)
 {
   process_start(&delete_process, NULL);
 }
+/*---------------------------------------------------------------------------*/
+#else /* ENABLED */
+void
+akes_delete_on_update_sent(void *ptr, int status, int transmissions)
+{
+
+}
+/*---------------------------------------------------------------------------*/
+void
+akes_delete_init(void)
+{
+
+}
+#endif /* ENABLED */
 /*---------------------------------------------------------------------------*/
