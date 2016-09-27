@@ -1162,9 +1162,8 @@ class BootStrapLoader(LowLevel):
         sys.stderr.flush()
         self.bslTxRx(self.BSL_CHANGEBAUD,   #Command: change baudrate
                     a, l)                   #args are coded in adr and len
-        self.serialport.flush()
         time.sleep(0.010)                   #recomended delay
-        self.serialport.baudrate = baudrate
+        self.serialport.setBaudrate(baudrate)
 
     def actionReadBSLVersion(self):
         """informational output of BSL version number.
