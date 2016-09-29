@@ -84,7 +84,7 @@ rtimer_arch_schedule(rtimer_clock_t t)
    * New value must be 5 ticks in the future. The ST may tick once while we're
    * writing the registers. We play it safe here and we add a bit of leeway
    */
-  if((int32_t)(t - now) < RTIMER_GUARD_TIME) {
+  if(!rtimer_is_schedulable(t, RTIMER_GUARD_TIME)) {
     t = now + RTIMER_GUARD_TIME;
   }
 
