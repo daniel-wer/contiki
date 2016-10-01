@@ -32,6 +32,7 @@
 #include "contiki.h"
 #include "unit-test.h"
 #include "net/linkaddr.h"
+#include "net/netstack.h"
 #include "net/mac/tsch/tsch.h"
 #include "net/mac/tsch/tsch-asn.h"
 #include "net/mac/tsch/tsch-packet.h"
@@ -66,6 +67,7 @@ typedef struct {
 
 typedef struct {
   linkaddr_t src;
+  linkaddr_t dst;
   uint64_t   asn;
   uint8_t hdr_len;
   frame_t    frame;
@@ -73,7 +75,7 @@ typedef struct {
 
 static const eb_test_vector_t eb_test_vectors[] = {
   { /* DEFAULT */
-    NODE1, 7, 18,
+    NODE1, NODE2, 7, 18,
     { 37,  { 0x00, 0xeb, 0xcd, 0xab, 0xff, 0xff, 0xcd, 0xab,
              0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0c, 0xc1,
              0x00, 0x3f, 0x11, 0x88, 0x06, 0x1a, 0x07, 0x00,
@@ -82,7 +84,7 @@ static const eb_test_vector_t eb_test_vectors[] = {
     }
   },
   { /* SECURITY_ON */
-    NODE1, 2, 20,
+    NODE1, NODE2, 2, 20,
     { 43, { 0x08, 0xeb, 0xcd, 0xab, 0xff, 0xff, 0xcd, 0xab,
             0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0c, 0xc1,
             0x69, 0x01, 0x00, 0x3f, 0x11, 0x88, 0x06, 0x1a,
@@ -92,7 +94,7 @@ static const eb_test_vector_t eb_test_vectors[] = {
     }
   },
   { /* ALL_ENABLED */
-    NODE1, 12, 18,
+    NODE1, NODE2, 12, 18,
     { 85, { 0x00, 0xeb, 0xcd, 0xab, 0xff, 0xff, 0xcd, 0xab,
             0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0c, 0xc1,
             0x00, 0x3f, 0x41, 0x88, 0x06, 0x1a, 0x0c, 0x00,
@@ -165,32 +167,28 @@ update_current_asn(uint64_t asn)
 static result_t
 test_create_eb(const eb_test_vector_t *v)
 {
-  uint8_t buf[TSCH_PACKET_MAX_LEN];
   int len;
   uint8_t hdr_len;
   uint8_t tsch_sync_ie_offset;
 
-  memset(buf, 0, sizeof(buf));
-
   linkaddr_copy(&linkaddr_node_addr, &v->src);
   update_current_asn(v->asn);
 
-  len = tsch_packet_create_eb(buf, sizeof(buf),
-                              &hdr_len, &tsch_sync_ie_offset);
-  tsch_packet_update_eb(buf, len, tsch_sync_ie_offset);
+  len = tsch_packet_create_eb(&hdr_len, &tsch_sync_ie_offset);
+  tsch_packet_update_eb(packetbuf_hdrptr(), len, tsch_sync_ie_offset);
 #if WITH_SECURITY_ON
-  len += tsch_security_secure_frame(buf, buf,
+  len += tsch_security_secure_frame(packetbuf_hdrptr(), packetbuf_hdrptr(),
                                     hdr_len, len - hdr_len,
                                     &tsch_current_asn);
 #endif
 
   printf("%s: len=%u, hdr_len=%u, buf=", __func__, len, hdr_len);
-  print_hex(buf, len);
+  print_hex(packetbuf_hdrptr(), len);
   printf("\n");
 
   if(len != v->frame.len ||
      hdr_len != v->hdr_len ||
-     memcmp(buf, v->frame.buf, len) != 0) {
+     memcmp(packetbuf_hdrptr(), v->frame.buf, len) != 0) {
     return FAILURE;
   }
 
@@ -200,13 +198,11 @@ test_create_eb(const eb_test_vector_t *v)
 static result_t
 test_parse_eb(const eb_test_vector_t *v)
 {
-  frame802154_t frame;
   struct ieee802154_ies ies;
   uint8_t hdr_len;
   int frame_without_mic;
   int len;
   uint64_t asn;
-  linkaddr_t src_addr;
 
 #if WITH_SECURITY_ON
   frame_without_mic = 0;
@@ -215,22 +211,27 @@ test_parse_eb(const eb_test_vector_t *v)
   frame_without_mic = 1;
 #endif
 
-  memset(&frame, 0, sizeof(frame));
+  linkaddr_copy(&linkaddr_node_addr, &v->dst);
+  packetbuf_clear();
+  memcpy(packetbuf_hdrptr(), v->frame.buf, v->frame.len);
+  packetbuf_set_datalen(v->frame.len);
+  if(NETSTACK_FRAMER.parse() == FRAMER_FAILED) {
+    return FAILURE;
+  }
+
   memset(&ies, 0, sizeof(ies));
   hdr_len = 0;
 
-  len = tsch_packet_parse_eb(v->frame.buf, v->frame.len, &frame, &ies, &hdr_len,
-                             frame_without_mic);
+  len = tsch_packet_parse_eb(&ies, &hdr_len, frame_without_mic);
   asn = ((uint64_t)ies.ie_asn.ms1b << 32) + ies.ie_asn.ls4b;
   printf("%s: len=%u, hdr_len=%u, asn=%llu\n", __func__, len, hdr_len, asn);
 
 #if WITH_SECURITY_ON
   /* adjust 'len' with the length of MIC which is included in a raw frame */
-  len += tsch_security_mic_len(&frame);
+  len += tsch_security_mic_len();
 #endif
 
-  if(frame.fcf.frame_type != FRAME802154_BEACONFRAME ||
-     frame.fcf.frame_version != FRAME802154_IEEE802154E_2012) {
+  if(packetbuf_attr(PACKETBUF_ATTR_FRAME_TYPE) != FRAME802154_BEACONFRAME) {
     return FAILURE;
   }
 
@@ -240,8 +241,7 @@ test_parse_eb(const eb_test_vector_t *v)
     return FAILURE;
   }
 
-  if(frame802154_extract_linkaddr(&frame, &src_addr, NULL) == 0||
-     linkaddr_cmp(&src_addr, &v->src) == 0) {
+  if(linkaddr_cmp(packetbuf_addr(PACKETBUF_ADDR_SENDER), &v->src) == 0) {
     return FAILURE;
   }
 
@@ -251,30 +251,27 @@ test_parse_eb(const eb_test_vector_t *v)
 static result_t
 test_create_eack(const eack_test_vector_t *v)
 {
-  uint8_t buf[TSCH_PACKET_MAX_LEN];
   int len;
 #if WITH_SECURITY_ON
   int data_len = 0;
 #endif
 
-  memset(buf, 0, sizeof(buf));
   linkaddr_copy(&linkaddr_node_addr, &v->src);
 
-  len = tsch_packet_create_eack(buf, sizeof(buf),
-                                &v->dest, v->seqno, v->drift, v->nack);
+  len = tsch_packet_create_eack(&v->dest, v->seqno, v->drift, v->nack);
 #if WITH_SECURITY_ON
   update_current_asn(v->asn);
-  len += tsch_security_secure_frame(buf, buf,
+  len += tsch_security_secure_frame(packetbuf_hdrptr(), packetbuf_hdrptr(),
                                     len, data_len,
                                     &tsch_current_asn);
 #endif
 
   printf("%s: len=%u, buf=", __func__, len);
-  print_hex(buf, len);
+  print_hex(packetbuf_hdrptr(), len);
   printf("\n");
 
   if(len != v->frame.len ||
-     memcmp(buf, v->frame.buf, len) != 0) {
+     memcmp(packetbuf_hdrptr(), v->frame.buf, len) != 0) {
     return FAILURE;
   }
 
@@ -284,7 +281,6 @@ test_create_eack(const eack_test_vector_t *v)
 static result_t
 test_parse_eack(const eack_test_vector_t *v)
 {
-  frame802154_t frame;
   struct ieee802154_ies ies;
   uint8_t hdr_len;
   int len;
@@ -299,28 +295,29 @@ test_parse_eack(const eack_test_vector_t *v)
   update_current_asn(v->asn);
 #endif
 
-  memset(&frame, 0, sizeof(frame));
+  linkaddr_copy(&linkaddr_node_addr, &v->dest);
+
+  packetbuf_clear();
+  memcpy(packetbuf_hdrptr(), v->frame.buf, v->frame.len);
+  packetbuf_set_datalen(v->frame.len);
   memset(&ies, 0, sizeof(ies));
   hdr_len = 0;
 
-  linkaddr_copy(&linkaddr_node_addr, &v->dest);
-  len = tsch_packet_parse_eack(v->frame.buf, v->frame.len, v->seqno,
-                               &frame, &ies, &hdr_len);
+  len = tsch_packet_parse_eack(v->seqno, &ies, &hdr_len);
   printf("%s: len=%u, seqno=%u, drift=%u, nack=%u\n",
-         __func__, len, frame.seq, ies.ie_time_correction, ies.ie_is_nack);
+         __func__, len, packetbuf_attr(PACKETBUF_ATTR_MAC_SEQNO), ies.ie_time_correction, ies.ie_is_nack);
 
 #if WITH_SECURITY_ON
   /* adjust 'len' with the length of MIC which is included in a raw frame */
-  len += tsch_security_mic_len(&frame);
+  len += tsch_security_mic_len();
 #endif
 
-  if(frame.fcf.frame_type != FRAME802154_ACKFRAME ||
-     frame.fcf.frame_version != FRAME802154_IEEE802154E_2012) {
+  if(packetbuf_attr(PACKETBUF_ATTR_FRAME_TYPE) != FRAME802154_ACKFRAME) {
     return FAILURE;
   }
 
   if(len != v->frame.len ||
-     frame.seq != v->seqno ||
+     packetbuf_attr(PACKETBUF_ATTR_MAC_SEQNO) != v->seqno ||
      ies.ie_time_correction != v->drift ||
      ies.ie_is_nack != v->nack) {
     return FAILURE;
