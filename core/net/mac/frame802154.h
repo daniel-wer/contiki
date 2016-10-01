@@ -213,12 +213,6 @@ void frame802154_set_pan_id(uint16_t pan_id);
 /* Tells whether a given Frame Control Field indicates a frame with
  * source PANID and/or destination PANID */
 void frame802154_has_panid(frame802154_fcf_t *fcf, int *has_src_pan_id, int *has_dest_pan_id);
-/* Check if the destination PAN ID, if any, matches ours */
-int frame802154_check_dest_panid(frame802154_t *frame);
-/* Check is the address is a broadcast address, whatever its size */
-int frame802154_is_broadcast_addr(uint8_t mode, uint8_t *addr);
-/* Check and extract source and destination linkaddr from frame */
-int frame802154_extract_linkaddr(frame802154_t *frame, linkaddr_t *source_address, linkaddr_t *dest_address);
 
 /** @} */
 #endif /* FRAME_802154_H */
