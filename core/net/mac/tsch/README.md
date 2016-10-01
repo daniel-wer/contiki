@@ -57,7 +57,7 @@ also tested with Rime (currently only with 64-bit link-layer addresses).
 ## Code structure
 
 The IEEE 802.15.4e-2012 frame format is implemented in:
-* `core/net/mac/frame802154.[ch]`: handling of frame version 2 
+* `core/net/mac/framer-802154.[ch]`: handling of frame version 2 
 * `core/net/mac/frame802154-ie.[ch]`: handling of Information Elements
 
 TSCH is implemented in:

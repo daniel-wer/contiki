@@ -262,21 +262,19 @@ static void
 eb_input(struct input_packet *current_input)
 {
   /* PRINTF("TSCH: EB received\n"); */
-  frame802154_t frame;
   /* Verify incoming EB (does its ASN match our Rx time?),
    * and update our join priority. */
   struct ieee802154_ies eb_ies;
 
-  if(tsch_packet_parse_eb(current_input->payload, current_input->len,
-                          &frame, &eb_ies, NULL, 1)) {
+  if(tsch_packet_parse_eb(&eb_ies, NULL, 1)) {
     /* PAN ID check and authentication done at rx time */
 
 #if TSCH_AUTOSELECT_TIME_SOURCE
     if(!tsch_is_coordinator) {
       /* Maintain EB received counter for every neighbor */
-      struct eb_stat *stat = (struct eb_stat *)nbr_table_get_from_lladdr(eb_stats, (linkaddr_t *)&frame.src_addr);
+      struct eb_stat *stat = (struct eb_stat *)nbr_table_get_from_lladdr(eb_stats, packetbuf_addr(PACKETBUF_ADDR_SENDER));
       if(stat == NULL) {
-        stat = (struct eb_stat *)nbr_table_add_lladdr(eb_stats, (linkaddr_t *)&frame.src_addr, NBR_TABLE_REASON_MAC, NULL);
+        stat = (struct eb_stat *)nbr_table_add_lladdr(eb_stats, packetbuf_addr(PACKETBUF_ADDR_SENDER), NBR_TABLE_REASON_MAC, NULL);
       }
       if(stat != NULL) {
         stat->rx_count++;
@@ -306,7 +304,7 @@ eb_input(struct input_packet *current_input)
 
     struct tsch_neighbor *n = tsch_queue_get_time_source();
     /* Did the EB come from our time source? */
-    if(n != NULL && linkaddr_cmp((linkaddr_t *)&frame.src_addr, &n->addr)) {
+    if(n != NULL && linkaddr_cmp(packetbuf_addr(PACKETBUF_ADDR_SENDER), &n->addr)) {
       /* Check for ASN drift */
       int32_t asn_diff = TSCH_ASN_DIFF(current_input->rx_asn, eb_ies.ie_asn);
       if(asn_diff != 0) {
@@ -343,17 +341,24 @@ tsch_rx_process_pending()
   /* Loop on accessing (without removing) a pending input packet */
   while((input_index = ringbufindex_peek_get(&input_ringbuf)) != -1) {
     struct input_packet *current_input = &input_array[input_index];
-    frame802154_t frame;
-    uint8_t ret = frame802154_parse(current_input->payload, current_input->len, &frame);
-    int is_data = ret && frame.fcf.frame_type == FRAME802154_DATAFRAME;
-    int is_eb = ret
-      && frame.fcf.frame_version == FRAME802154_IEEE802154E_2012
-      && frame.fcf.frame_type == FRAME802154_BEACONFRAME;
+    uint8_t ret;
+    uint8_t frame_type;
+    int is_data = 0;
+    int is_eb = 0;
+
+    /* Copy to packetbuf for processing */
+    packetbuf_copyfrom(current_input->payload, current_input->len);
+    ret = NETSTACK_FRAMER.parse();
+    if(ret == FRAMER_FAILED) {
+      PRINTF("TSCH:! failed to parse %u\n", packetbuf_datalen());
+    } else {
+      frame_type = packetbuf_attr(PACKETBUF_ATTR_FRAME_TYPE);
+      is_data = frame_type == FRAME802154_DATAFRAME;
+      is_eb = frame_type == FRAME802154_BEACONFRAME;
+    }
 
     if(is_data) {
       /* Skip EBs and other control messages */
-      /* Copy to packetbuf for processing */
-      packetbuf_copyfrom(current_input->payload, current_input->len);
       packetbuf_set_attr(PACKETBUF_ATTR_RSSI, current_input->rssi);
       packetbuf_set_attr(PACKETBUF_ATTR_CHANNEL, current_input->channel);
     }
@@ -427,16 +432,19 @@ tsch_disassociate(void)
 /*---------------------------------------------------------------------------*/
 /* Attempt to associate to a network form an incoming EB */
 static int
-tsch_associate(const struct input_packet *input_eb, rtimer_clock_t timestamp)
+tsch_associate(rtimer_clock_t timestamp)
 {
-  frame802154_t frame;
   struct ieee802154_ies ies;
   uint8_t hdrlen;
   int i;
 
-  if(input_eb == NULL || tsch_packet_parse_eb(input_eb->payload, input_eb->len,
-                                              &frame, &ies, &hdrlen, 0) == 0) {
-    PRINTF("TSCH:! failed to parse EB (len %u)\n", input_eb->len);
+  if(NETSTACK_FRAMER.parse() == FRAMER_FAILED) {
+    PRINTF("TSCH:! framer failed to parse EB (len %u)\n", packetbuf_totlen());
+    return 0;
+  }
+
+  if(tsch_packet_parse_eb(&ies, &hdrlen, 0) == 0) {
+    PRINTF("TSCH:! tsch_packet_parse_eb failed to parse EB (len %u)\n", packetbuf_totlen());
     return 0;
   }
 
@@ -444,32 +452,25 @@ tsch_associate(const struct input_packet *input_eb, rtimer_clock_t timestamp)
   tsch_join_priority = ies.ie_join_priority + 1;
 
 #if TSCH_JOIN_SECURED_ONLY
-  if(frame.fcf.security_enabled == 0) {
+  if(!packetbuf_attr(PACKETBUF_ATTR_SECURITY_LEVEL)) {
     PRINTF("TSCH:! parse_eb: EB is not secured\n");
     return 0;
   }
 #endif /* TSCH_JOIN_SECURED_ONLY */
   
 #if LLSEC802154_ENABLED
-  if(!tsch_security_parse_frame(input_eb->payload, hdrlen,
-      input_eb->len - hdrlen - tsch_security_mic_len(&frame),
-      &frame, (linkaddr_t*)&frame.src_addr, &tsch_current_asn)) {
+  if(!tsch_security_parse_frame(packetbuf_hdrptr(), hdrlen,
+      packetbuf_totlen() - hdrlen - tsch_security_mic_len(),
+      packetbuf_addr(PACKETBUF_ADDR_SENDER), &tsch_current_asn)) {
     PRINTF("TSCH:! parse_eb: failed to authenticate\n");
     return 0;
   }
 #endif /* LLSEC802154_ENABLED */
 
-#if !LLSEC802154_ENABLED
-  if(frame.fcf.security_enabled == 1) {
-    PRINTF("TSCH:! parse_eb: we do not support security, but EB is secured\n");
-    return 0;
-  }
-#endif /* !LLSEC802154_ENABLED */
-
 #if TSCH_JOIN_MY_PANID_ONLY
   /* Check if the EB comes from the PAN ID we expect */
-  if(frame.src_pid != IEEE802154_PANID) {
-    PRINTF("TSCH:! parse_eb: PAN ID %x != %x\n", frame.src_pid, IEEE802154_PANID);
+  if(packetbuf_attr(PACKETBUF_ATTR_SOURCE_PANID) != IEEE802154_PANID) {
+    PRINTF("TSCH:! parse_eb: PAN ID %x != %x\n", packetbuf_attr(PACKETBUF_ATTR_SOURCE_PANID), IEEE802154_PANID);
     return 0;
   }
 #endif /* TSCH_JOIN_MY_PANID_ONLY */
@@ -551,20 +552,24 @@ tsch_associate(const struct input_packet *input_eb, rtimer_clock_t timestamp)
     struct tsch_neighbor *n;
 
     /* Add coordinator to list of neighbors, lock the entry */
-    n = tsch_queue_add_nbr((linkaddr_t *)&frame.src_addr);
+    n = tsch_queue_add_nbr(packetbuf_addr(PACKETBUF_ADDR_SENDER));
 
     if(n != NULL) {
-      tsch_queue_update_time_source((linkaddr_t *)&frame.src_addr);
+      tsch_queue_update_time_source(packetbuf_addr(PACKETBUF_ADDR_SENDER));
 
       /* Set PANID */
-      frame802154_set_pan_id(frame.src_pid);
+      frame802154_set_pan_id(packetbuf_attr(PACKETBUF_ATTR_SOURCE_PANID));
 
       /* Synchronize on EB */
       tsch_slot_operation_sync(timestamp - tsch_timing[tsch_ts_tx_offset], &tsch_current_asn);
 
       /* Update global flags */
       tsch_is_associated = 1;
-      tsch_is_pan_secured = frame.fcf.security_enabled;
+#if LLSEC802154_ENABLED
+      tsch_is_pan_secured = packetbuf_attr(PACKETBUF_ATTR_SECURITY_LEVEL);
+#else /* LLSEC802154_ENABLED */
+      tsch_is_pan_secured = 0;
+#endif /* LLSEC802154_ENABLED */
 
       /* Start sending keep-alives now that tsch_is_associated is set */
       tsch_schedule_keepalive();
@@ -575,13 +580,13 @@ tsch_associate(const struct input_packet *input_eb, rtimer_clock_t timestamp)
 
       PRINTF("TSCH: association done, sec %u, PAN ID %x, asn-%x.%lx, jp %u, timeslot id %u, hopping id %u, slotframe len %u with %u links, from ",
              tsch_is_pan_secured,
-             frame.src_pid,
+             packetbuf_attr(PACKETBUF_ATTR_SOURCE_PANID),
              tsch_current_asn.ms1b, tsch_current_asn.ls4b, tsch_join_priority,
              ies.ie_tsch_timeslot_id,
              ies.ie_channel_hopping_sequence_id,
              ies.ie_tsch_slotframe_and_link.slotframe_size,
              ies.ie_tsch_slotframe_and_link.num_links);
-      PRINTLLADDR((const uip_lladdr_t *)&frame.src_addr);
+      PRINTLLADDR((const uip_lladdr_t *)packetbuf_addr(PACKETBUF_ADDR_SENDER));
       PRINTF("\n");
 
       return 1;
@@ -602,7 +607,6 @@ PT_THREAD(tsch_scan(struct pt *pt))
 {
   PT_BEGIN(pt);
 
-  static struct input_packet input_eb;
   static struct etimer scan_timer;
   /* Time when we started scanning on current_channel */
   static clock_time_t current_channel_since;
@@ -646,15 +650,16 @@ PT_THREAD(tsch_scan(struct pt *pt))
 
     if(is_packet_pending) {
       /* Read packet */
-      input_eb.len = NETSTACK_RADIO.read(input_eb.payload, TSCH_PACKET_MAX_LEN);
+      packetbuf_clear();
+      packetbuf_set_datalen(NETSTACK_RADIO.read(packetbuf_hdrptr(), PACKETBUF_SIZE));
 
       /* Save packet timestamp */
       NETSTACK_RADIO.get_object(RADIO_PARAM_LAST_PACKET_TIMESTAMP, &t0, sizeof(rtimer_clock_t));
 
       /* Parse EB and attempt to associate */
-      PRINTF("TSCH: association: received packet (%u bytes) on channel %u\n", input_eb.len, current_channel);
+      PRINTF("TSCH: association: received packet (%u bytes) on channel %u\n", packetbuf_datalen(), current_channel);
 
-      tsch_associate(&input_eb, t0);
+      tsch_associate(t0);
     }
 
     if(tsch_is_associated) {
@@ -735,21 +740,9 @@ PROCESS_THREAD(tsch_send_eb_process, ev, data)
         uint8_t hdr_len = 0;
         uint8_t tsch_sync_ie_offset;
         /* Prepare the EB packet and schedule it to be sent */
-        packetbuf_clear();
-        packetbuf_set_attr(PACKETBUF_ATTR_FRAME_TYPE, FRAME802154_BEACONFRAME);
-#if LLSEC802154_ENABLED
-        if(tsch_is_pan_secured) {
-          /* Set security level, key id and index */
-          packetbuf_set_attr(PACKETBUF_ATTR_SECURITY_LEVEL, TSCH_SECURITY_KEY_SEC_LEVEL_EB);
-          packetbuf_set_attr(PACKETBUF_ATTR_KEY_ID_MODE, FRAME802154_1_BYTE_KEY_ID_MODE); /* Use 1-byte key index */
-          packetbuf_set_attr(PACKETBUF_ATTR_KEY_INDEX, TSCH_SECURITY_KEY_INDEX_EB);
-        }
-#endif /* LLSEC802154_ENABLED */
-        eb_len = tsch_packet_create_eb(packetbuf_dataptr(), PACKETBUF_SIZE,
-            &hdr_len, &tsch_sync_ie_offset);
+        eb_len = tsch_packet_create_eb(&hdr_len, &tsch_sync_ie_offset);
         if(eb_len > 0) {
           struct tsch_packet *p;
-          packetbuf_set_datalen(eb_len);
           /* Enqueue EB packet */
           if(!(p = tsch_queue_add_packet(&tsch_eb_address, NULL, NULL))) {
             PRINTF("TSCH:! could not enqueue EB packet\n");
@@ -945,35 +938,27 @@ send_packet(mac_callback_t sent, void *ptr)
 static void
 packet_input(void)
 {
-  int frame_parsed = 1;
+  int duplicate = 0;
 
-  frame_parsed = NETSTACK_FRAMER.parse();
-
-  if(frame_parsed < 0) {
-    PRINTF("TSCH:! failed to parse %u\n", packetbuf_datalen());
-  } else {
-    int duplicate = 0;
-
-    /* Seqno of 0xffff means no seqno */
-    if(packetbuf_attr(PACKETBUF_ATTR_MAC_SEQNO) != 0xffff) {
-      /* Check for duplicates */
-      duplicate = mac_sequence_is_duplicate();
-      if(duplicate) {
-        /* Drop the packet. */
-        PRINTF("TSCH:! drop dup ll from %u seqno %u\n",
-               TSCH_LOG_ID_FROM_LINKADDR(packetbuf_addr(PACKETBUF_ADDR_SENDER)),
-               packetbuf_attr(PACKETBUF_ATTR_MAC_SEQNO));
-      } else {
-        mac_sequence_register_seqno();
-      }
-    }
-
-    if(!duplicate) {
-      PRINTF("TSCH: received from %u with seqno %u\n",
+  /* Seqno of 0xffff means no seqno */
+  if(packetbuf_attr(PACKETBUF_ATTR_MAC_SEQNO) != 0xffff) {
+    /* Check for duplicates */
+    duplicate = mac_sequence_is_duplicate();
+    if(duplicate) {
+      /* Drop the packet. */
+      PRINTF("TSCH:! drop dup ll from %u seqno %u\n",
              TSCH_LOG_ID_FROM_LINKADDR(packetbuf_addr(PACKETBUF_ADDR_SENDER)),
              packetbuf_attr(PACKETBUF_ATTR_MAC_SEQNO));
-      NETSTACK_LLSEC.input();
+    } else {
+      mac_sequence_register_seqno();
     }
+  }
+
+  if(!duplicate) {
+    PRINTF("TSCH: received from %u with seqno %u\n",
+           TSCH_LOG_ID_FROM_LINKADDR(packetbuf_addr(PACKETBUF_ADDR_SENDER)),
+           packetbuf_attr(PACKETBUF_ATTR_MAC_SEQNO));
+    NETSTACK_LLSEC.input();
   }
 }
 /*---------------------------------------------------------------------------*/

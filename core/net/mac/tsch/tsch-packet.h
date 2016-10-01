@@ -64,21 +64,6 @@
 #define TSCH_PACKET_EB_WITH_SLOTFRAME_AND_LINK 0
 #endif
 
-/* Include source address in ACK? */
-#ifdef TSCH_PACKET_CONF_EACK_WITH_SRC_ADDR
-#define TSCH_PACKET_EACK_WITH_SRC_ADDR TSCH_PACKET_CONF_EACK_WITH_SRC_ADDR
-#else
-#define TSCH_PACKET_EACK_WITH_SRC_ADDR 0
-#endif
-
-/* Include destination address in ACK? */
-#ifdef TSCH_PACKET_CONF_EACK_WITH_DEST_ADDR
-#define TSCH_PACKET_EACK_WITH_DEST_ADDR TSCH_PACKET_CONF_EACK_WITH_DEST_ADDR
-#else
-#define TSCH_PACKET_EACK_WITH_DEST_ADDR 1 /* Include destination address
-by default, useful in case of duplicate seqno */
-#endif
-
 /********** Constants *********/
 
 /* Max TSCH packet lenght */
@@ -87,19 +72,14 @@ by default, useful in case of duplicate seqno */
 /********** Functions *********/
 
 /* Construct enhanced ACK packet and return ACK length */
-int tsch_packet_create_eack(uint8_t *buf, int buf_size,
-    const linkaddr_t *dest_addr, uint8_t seqno, int16_t drift, int nack);
+int tsch_packet_create_eack(const linkaddr_t *dest_addr, uint8_t seqno, int16_t drift, int nack);
 /* Parse enhanced ACK packet, extract drift and nack */
-int tsch_packet_parse_eack(const uint8_t *buf, int buf_size,
-    uint8_t seqno, frame802154_t *frame, struct ieee802154_ies *ies, uint8_t *hdr_len);
+int tsch_packet_parse_eack(uint8_t seqno, struct ieee802154_ies *ies, uint8_t *hdr_len);
 /* Create an EB packet */
-int tsch_packet_create_eb(uint8_t *buf, int buf_size,
-    uint8_t *hdr_len, uint8_t *tsch_sync_ie_ptr);
+int tsch_packet_create_eb(uint8_t *hdr_len, uint8_t *tsch_sync_ie_ptr);
 /* Update ASN in EB packet */
 int tsch_packet_update_eb(uint8_t *buf, int buf_size, uint8_t tsch_sync_ie_offset);
 /* Parse EB and extract ASN and join priority */
-int tsch_packet_parse_eb(const uint8_t *buf, int buf_size,
-    frame802154_t *frame, struct ieee802154_ies *ies,
-    uint8_t *hdrlen, int frame_without_mic);
+int tsch_packet_parse_eb(struct ieee802154_ies *ies, uint8_t *hdrlen, int frame_without_mic);
 
 #endif /* __TSCH_PACKET_H__ */
