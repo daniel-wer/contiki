@@ -74,6 +74,12 @@
 #define MAX_CONSECUTIVE_RESETS (3)
 #endif /* AKES_TRICKLE_CONF_MAX_CONSECUTIVE_RESETS */
 
+#ifdef AKES_TRICKLE_CONF_ENABLED
+#define ENABLED AKES_TRICKLE_CONF_ENABLED
+#else /* AKES_TRICKLE_CONF_ENABLED */
+#define ENABLED 1
+#endif /* AKES_TRICKLE_CONF_ENABLED */
+
 #define DEBUG 0
 #if DEBUG
 #include <stdio.h>
@@ -81,6 +87,8 @@
 #else /* DEBUG */
 #define PRINTF(...)
 #endif /* DEBUG */
+
+#if ENABLED
 
 static void on_interval_expired(void *ptr);
 static void on_hello_done(void *ptr);
@@ -213,6 +221,39 @@ akes_trickle_start(void)
 
   akes_change_hello_challenge();
   interval_size = get_random_time(IMIN, IMIN << IMAX);
+
   on_timeout(NULL);
 }
+/*---------------------------------------------------------------------------*/
+#else /* ENABLED */
+void
+akes_trickle_on_fresh_authentic_hello(struct akes_nbr *sender)
+{
+
+}
+/*---------------------------------------------------------------------------*/
+void
+akes_trickle_on_new_nbr(void)
+{
+
+}
+/*---------------------------------------------------------------------------*/
+void
+akes_trickle_stop(void)
+{
+
+}
+/*---------------------------------------------------------------------------*/
+void
+akes_trickle_reset(void)
+{
+
+}
+/*---------------------------------------------------------------------------*/
+void
+akes_trickle_start(void)
+{
+
+}
+#endif /* ENABLED */
 /*---------------------------------------------------------------------------*/
