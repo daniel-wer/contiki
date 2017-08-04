@@ -386,7 +386,6 @@ on_helloack(uint8_t *payload, int p_flag)
       payload + AKES_NBR_CHALLENGE_LEN,
       AKES_HELLOACK_IDENTIFIER);
   send_ack(entry);
-  akes_trickle_on_new_nbr();
   return CMD_BROKER_CONSUMED;
 }
 /*---------------------------------------------------------------------------*/
@@ -410,6 +409,12 @@ on_ack_sent(void *ptr, int status, int transmissions)
 
   entry = ptr;
   akes_nbr_delete(entry, AKES_NBR_TENTATIVE);
+  if(status != MAC_TX_OK) {
+    PRINTF("akes: ACK was not acknowledged\n");
+    akes_nbr_delete(entry, AKES_NBR_PERMANENT);
+    return;
+  }
+  akes_trickle_on_new_nbr();
 }
 #endif /* !AKES_NBR_WITH_PAIRWISE_KEYS */
 /*---------------------------------------------------------------------------*/
