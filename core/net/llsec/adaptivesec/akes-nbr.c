@@ -271,6 +271,7 @@ akes_nbr_update(struct akes_nbr *nbr, uint8_t *data, int cmd_id)
   switch(cmd_id) {
   case AKES_HELLOACK_IDENTIFIER:
   case AKES_ACK_IDENTIFIER:
+  case AKES_UPDATE_IDENTIFIER:
     akes_nbr_copy_key(nbr->group_key, data);
     break;
   }

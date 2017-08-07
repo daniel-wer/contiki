@@ -139,5 +139,6 @@ int adaptivesec_verify(uint8_t *key
     , struct secrdc_phase *phase
 #endif /* ILOS_ENABLED */
     );
+void adaptivesec_group_key_init(void);
 
 #endif /* ADAPTIVESEC_H_ */

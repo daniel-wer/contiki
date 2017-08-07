@@ -200,6 +200,7 @@ prepare_update_command(uint8_t cmd_id,
   case AKES_HELLOACK_IDENTIFIER:
   case AKES_HELLOACK_P_IDENTIFIER:
   case AKES_ACK_IDENTIFIER:
+  case AKES_UPDATE_IDENTIFIER:
     akes_nbr_copy_key(payload, adaptivesec_group_key);
     packetbuf_set_attr(PACKETBUF_ATTR_UNENCRYPTED_BYTES, payload_len);
     payload_len += AES_128_KEY_LENGTH;
@@ -603,18 +604,16 @@ akes_send_update(struct akes_nbr_entry *entry)
 static enum cmd_broker_result
 on_update(uint8_t cmd_id, uint8_t *payload)
 {
-#if !ILOS_ENABLED
   struct akes_nbr_entry *entry;
-#endif /* !ILOS_ENABLED */
 
   PRINTF("akes: Received %s\n", (cmd_id == AKES_UPDATE_IDENTIFIER) ? "UPDATE" : "UPDATEACK");
 
-#if !ILOS_ENABLED
   entry = akes_nbr_get_sender_entry();
   if(!entry || !entry->permanent) {
     PRINTF("akes: Invalid %s\n", (cmd_id == AKES_UPDATE_IDENTIFIER) ? "UPDATE" : "UPDATEACK");
     return CMD_BROKER_ERROR;
   }
+#if !ILOS_ENABLED
 #if !SECRDC_WITH_SECURE_PHASE_LOCK
 #if ANTI_REPLAY_WITH_SUPPRESSION && !POTR_ENABLED
   anti_replay_parse_counter(payload + 1);
@@ -634,9 +633,9 @@ on_update(uint8_t cmd_id, uint8_t *payload)
   }
 #endif /* POTR_ENABLED */
 
-#if !ILOS_ENABLED
   akes_nbr_update(entry->permanent, payload, cmd_id);
 
+#if !ILOS_ENABLED
   if(cmd_id == AKES_UPDATE_IDENTIFIER) {
     send_updateack(entry);
   }

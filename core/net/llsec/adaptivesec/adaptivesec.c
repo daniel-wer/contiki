@@ -360,12 +360,18 @@ input(void)
   }
 }
 /*---------------------------------------------------------------------------*/
+void
+adaptivesec_group_key_init(void)
+{
+  csprng_rand(adaptivesec_group_key, AES_128_KEY_LENGTH);
+}
+/*---------------------------------------------------------------------------*/
 static void
 init(void)
 {
   cmd_broker_init();
 #if AKES_NBR_WITH_GROUP_KEYS
-  csprng_rand(adaptivesec_group_key, AES_128_KEY_LENGTH);
+  adaptivesec_group_key_init();
 #endif /* AKES_NBR_WITH_GROUP_KEYS */
   ADAPTIVESEC_STRATEGY.init();
   akes_init();
