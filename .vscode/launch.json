@@ -1,0 +1,81 @@
+{
+    "version": "0.2.0",
+    "compounds": [
+        {
+            "name": "All",
+            "configurations": ["Login-0", "Login-1"]
+        }
+    ],
+    "configurations": [
+        {
+            "name": "Login-0",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/tools/sky/serialdump-linux",
+            "args":["-b115200", "/dev/ttyUSB0"],
+            "cwd": "${workspaceRoot}",
+            "stopAtEntry": false,
+            // "preLaunchTask": "upload-0",
+            "externalConsole": true
+        },
+        {
+            "name": "Login-1",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/tools/sky/serialdump-linux",
+            "args":["-b115200", "/dev/ttyUSB1"],
+            "cwd": "${workspaceRoot}",
+            "stopAtEntry": false,
+            // "preLaunchTask": "upload-1",
+            "externalConsole": true
+        },
+        {
+            "name": "Login-2",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/tools/sky/serialdump-linux",
+            "args":["-b115200", "/dev/ttyUSB2"],
+            "cwd": "${workspaceRoot}",
+            "stopAtEntry": false,
+            // "preLaunchTask": "upload-2",
+            "externalConsole": true
+        },
+        {
+            "name": "Login-3",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/tools/sky/serialdump-linux",
+            "args":["-b115200", "/dev/ttyUSB3"],
+            "cwd": "${workspaceRoot}",
+            "stopAtEntry": false,
+            // "preLaunchTask": "upload-3",
+            "externalConsole": true
+        },
+        {
+            "name": "Login-4",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/tools/sky/serialdump-linux",
+            "args":["-b115200", "/dev/ttyUSB4"],
+            "cwd": "${workspaceRoot}",
+            "stopAtEntry": false,
+            // "preLaunchTask": "upload-4",
+            "externalConsole": true
+        },
+        {
+            "name": "Debug gdb",
+            "type": "gdb",
+            "request": "attach",
+            "executable": "${workspaceRoot}/examples/key-revocation/key-revocation.elf",
+            "target": "localhost:2331",
+            "cwd": "${workspaceRoot}",
+            "gdbpath": "arm-none-eabi-gdb",
+            "remote": true,
+            "autorun": [
+                "load ${workspaceRoot}/examples/key-revocation/key-revocation.elf",
+                "break main",
+                "monitor reset"
+            ]
+        }
+    ]
+}

@@ -139,4 +139,6 @@
 #undef UIP_CONF_UDP
 #define UIP_CONF_UDP 0
 
+#define RF_CHANNEL 16
+
 #endif /* PROJECT_ROUTER_CONF_H_ */

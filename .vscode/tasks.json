@@ -1,0 +1,116 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "0.1.0",
+    "tasks":[
+        {
+            "taskName": "build",
+            "command": "make",
+            "isShellCommand": true,
+            "args": ["-C", "${fileDirname}"],
+            "showOutput": "always",
+            "isBuildCommand": true
+        },
+        {
+            "taskName": "JLinkGDBServer",
+            "command": "JLinkGDBServer",
+            "isBackground": true,
+            "args": [
+                "-select", "USB",
+                "-device", "CC2538SF53",
+                "-if", "JTAG",
+                "-speed", "1000",
+                "-strict",
+                "-nogui"
+            ],
+            "showOutput": "always"
+        },
+        {
+            "taskName": "build-network",
+            "command": "${workspaceRoot}/tools/cc2538-openmote/build-network.sh",
+            "isBackground": true,
+            "args": [],
+            "showOutput": "always"
+        },
+        {
+            "taskName": "upload-0",
+            "command": "${workspaceRoot}/tools/cc2538-bsl/cc2538-bsl.py",
+            "isShellCommand": true,
+            "args": [
+                "-e", 
+                "--bootloader-invert-lines",
+                "-w",
+                "-v",
+                "-b", "450000",
+                "-p", "/dev/ttyUSB0",
+                "-a", "0x00202000",
+                "${fileDirname}/${fileBasenameNoExtension}.bin"
+            ],
+            "showOutput": "always"
+        },
+        {
+            "taskName": "upload-1",
+            "command": "${workspaceRoot}/tools/cc2538-bsl/cc2538-bsl.py",
+            "isShellCommand": true,
+            "args": [
+                "-e",
+                "--bootloader-invert-lines",
+                "-w",
+                "-v",
+                "-b", "450000",
+                "-p", "/dev/ttyUSB1",
+                "-a", "0x00202000",
+                "${fileDirname}/${fileBasenameNoExtension}.bin"
+            ],
+            "showOutput": "always"
+        },
+        {
+            "taskName": "upload-2",
+            "command": "${workspaceRoot}/tools/cc2538-bsl/cc2538-bsl.py",
+            "isShellCommand": true,
+            "args": [
+                "-e", 
+                "--bootloader-invert-lines",
+                "-w",
+                "-v",
+                "-b", "450000",
+                "-p", "/dev/ttyUSB2",
+                "-a", "0x00202000",
+                "${fileDirname}/${fileBasenameNoExtension}.bin"
+            ],
+            "showOutput": "always"
+        },
+        {
+            "taskName": "upload-3",
+            "command": "${workspaceRoot}/tools/cc2538-bsl/cc2538-bsl.py",
+            "isShellCommand": true,
+            "args": [
+                "-e", 
+                "--bootloader-invert-lines",
+                "-w",
+                "-v",
+                "-b", "450000",
+                "-p", "/dev/ttyUSB3",
+                "-a", "0x00202000",
+                "${fileDirname}/${fileBasenameNoExtension}.bin"
+            ],
+            "showOutput": "always"
+        },
+        {
+            "taskName": "upload-4",
+            "command": "${workspaceRoot}/tools/cc2538-bsl/cc2538-bsl.py",
+            "isShellCommand": true,
+            "args": [
+                "-e", 
+                "--bootloader-invert-lines",
+                "-w",
+                "-v",
+                "-b", "450000",
+                "-p", "/dev/ttyUSB4",
+                "-a", "0x00202000",
+                "${fileDirname}/${fileBasenameNoExtension}.bin"
+            ],
+            "showOutput": "always"
+        }
+    ]    
+}

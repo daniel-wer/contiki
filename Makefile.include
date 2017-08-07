@@ -47,7 +47,7 @@ targets:
 savetarget:
 	-@rm -f Makefile.target
 	@echo "saving Makefile.target"
-	@echo >Makefile.target "TARGET = $(TARGET)"
+	@echo >Makefile.target "TARGET = $(TARGET)\nBOARD_REVISION = $(BOARD_REVISION)"
 
 savedefines:
 	-@rm -f Makefile.$(TARGET).defines

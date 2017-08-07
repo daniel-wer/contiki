@@ -27,10 +27,16 @@ CFLAGS += -Werror
 endif
 
 ### Are we building with code size optimisations?
-ifeq ($(SMALL),1)
-  CFLAGS += -Os
+ifdef DEBUG_CONF
+  CFLAGS += -O0
+  CFLAGS += -g
+  CFLAGS += -gdwarf-2
 else
-  CFLAGS += -O2
+  ifeq ($(SMALL),1)
+    CFLAGS += -Os
+  else
+    CFLAGS += -O2
+  endif
 endif
 
 ### If the user-specified a Node ID, pass a define
