@@ -41,6 +41,7 @@
 #include "net/llsec/adaptivesec/akes-delete.h"
 #include "net/llsec/adaptivesec/akes-trickle.h"
 #include "net/llsec/adaptivesec/adaptivesec.h"
+#include "net/llsec/adaptivesec/nrl.h"
 #include "net/llsec/anti-replay.h"
 #include "net/cmd-broker.h"
 #include "net/packetbuf.h"
@@ -74,7 +75,7 @@
 #define MAX_CONSECUTIVE_HELLOACKS (10)
 #endif /* AKES_CONF_MAX_CONSECUTIVE_HELLOACKS */
 
-#define DEBUG 0
+#define DEBUG 1
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) printf(__VA_ARGS__)
@@ -353,6 +354,14 @@ send_helloack(void *ptr)
   PRINTF("akes: Sending HELLOACK\n");
 
   entry = (struct akes_nbr_entry *)ptr;
+
+#if KEY_REVOCATION_ENABLED
+  if(is_revoked(akes_nbr_get_addr(entry))) {
+    PRINTF("akes: HELLO sender is revoked, communication aborted\n");
+    return;
+  }
+#endif /* KEY_REVOCATION_ENABLED */
+
   akes_nbr_copy_challenge(challenges, entry->tentative->challenge);
   csprng_rand(challenges + AKES_NBR_CHALLENGE_LEN, AKES_NBR_CHALLENGE_LEN);
   akes_nbr_copy_challenge(entry->tentative->challenge, challenges + AKES_NBR_CHALLENGE_LEN);
@@ -407,6 +416,13 @@ on_helloack(uint8_t *payload, int p_flag)
   uint8_t key[AKES_NBR_CHALLENGE_LEN * 2];
 
   PRINTF("akes: Received HELLOACK\n");
+
+#if KEY_REVOCATION_ENABLED
+  if(is_revoked(packetbuf_addr(PACKETBUF_ADDR_SENDER))) {
+    PRINTF("akes: HELLOACK sender is revoked, communication aborted\n");
+    return CMD_BROKER_ERROR;
+  }
+#endif /* KEY_REVOCATION_ENABLED */
 
   akes_nbr_delete_expired_tentatives();
   entry = akes_nbr_get_sender_entry();

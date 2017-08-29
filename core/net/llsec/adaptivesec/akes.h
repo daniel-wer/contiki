@@ -108,6 +108,11 @@ struct akes_scheme {
    * \retval NULL HELLOACK shall be discarded
    */
   uint8_t * (* get_secret_with_helloack_sender)(const linkaddr_t *addr);
+
+  /**
+   *
+   */
+  void (* update_secret_with_sender)(const linkaddr_t *addr, uint8_t *newSecret);
 };
 
 extern const struct akes_scheme AKES_SCHEME;

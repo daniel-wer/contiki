@@ -38,6 +38,7 @@
  */
 
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include "contiki.h"
@@ -121,8 +122,8 @@ PROCESS_THREAD(key_revocation_server, ev, data)
    */
   rest_activate_resource(&res_event, (char *) "sensors/button");
 
-#ifdef KEY_REVOCATION_ENABLED
-  rest_activate_resource(&res_key_revocation, (char *) "keys/broadcast");
+#if KEY_REVOCATION_ENABLED
+  rest_activate_resource(&res_key_revocation, (char *) "keys/info");
   PRINTF("[KeyRev] Key revocation enabled.\n");
 #endif /* KEY_REVOCATION_ENABLED */
 

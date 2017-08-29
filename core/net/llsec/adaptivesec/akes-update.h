@@ -40,6 +40,9 @@
 #ifndef AKES_UPDATE_H_
 #define AKES_UPDATE_H_
 
+#include "net/linkaddr.h"
+
 void akes_update_group_key(void);
+int akes_revoke_node(const linkaddr_t *addr);
 
 #endif /* AKES_UPDATE_H_ */

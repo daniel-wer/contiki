@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Hasso-Plattner-Institut.
+ * Copyright (c) 2017, Hasso-Plattner-Institut.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,49 +32,33 @@
 
 /**
  * \file
- *         Network-wide key scheme.
+ *         Node revocation list.
  * \author
- *         Konrad Krentz <konrad.krentz@gmail.com>
+ *         Daniel Werner <daniel.werner@student.hpi.de>
  */
 
-#include <stdint.h>
-#include <string.h>
-#include "net/llsec/adaptivesec/akes-single.h"
-#include "lib/aes-128.h"
+#ifndef NRL_H_
+#define NRL_H_
 
-#ifdef SINGLE_CONF_KEY
-#define SINGLE_KEY SINGLE_CONF_KEY
-#else /* SINGLE_CONF_KEY */
-#define SINGLE_KEY { 0x00 , 0x01 , 0x02 , 0x03 , \
-                     0x04 , 0x05 , 0x06 , 0x07 , \
-                     0x08 , 0x09 , 0x0A , 0x0B , \
-                     0x0C , 0x0D , 0x0E , 0x0F }
-#endif /* SINGLE_CONF_KEY */
+#include "net/linkaddr.h"
 
-static uint8_t key[AES_128_KEY_LENGTH] = SINGLE_KEY;
+/**
+   * \return   Boolean that indicates whether the node with link layer address addr is revoked
+   * \retval 0 Node is not revoked
+   * \retval 1 Node is revoked
+   */
+int is_revoked(const linkaddr_t *addr);
 
-/*---------------------------------------------------------------------------*/
-static uint8_t *
-get_secret_with(const linkaddr_t *addr)
-{
-  return (uint8_t *)key;
-}
-/*---------------------------------------------------------------------------*/
-static void
-update_secret_with(const linkaddr_t *addr, uint8_t *newSecret)
-{
-  memcpy(key, newSecret, AES_128_KEY_LENGTH);
-}
-/*---------------------------------------------------------------------------*/
-static void
-init(void)
-{
-}
-/*---------------------------------------------------------------------------*/
-const struct akes_scheme akes_single_scheme = {
-  init,
-  get_secret_with,
-  get_secret_with,
-  update_secret_with
-};
-/*---------------------------------------------------------------------------*/
+/**
+   * \brief 	Adds the node with link layer address addr to the node revocation list, if it is not full
+   * \return    Current length of the node revocation list
+   * \retval -1 Node revocation list is full, node was not revoked
+   */
+int revoke(const linkaddr_t *addr);
+
+/**
+   * \brief Clears the node revocation list
+   */
+void clear();
+
+#endif /* NRL_H_ */

@@ -40,6 +40,7 @@
 #include "net/llsec/adaptivesec/adaptivesec.h"
 #include "net/llsec/adaptivesec/akes-update.h"
 #include "net/llsec/adaptivesec/akes.h"
+#include "net/llsec/adaptivesec/nrl.h"
 
 #define DEBUG 1
 #if DEBUG
@@ -49,6 +50,8 @@
 #define PRINTF(...)
 #endif /* DEBUG */
 
+#if KEY_REVOCATION_ENABLED
+#if AKES_NBR_WITH_GROUP_KEYS
 void
 akes_print_group_key(void)
 {
@@ -63,7 +66,7 @@ akes_print_group_key(void)
 void
 akes_update_group_key(void)
 {
-  static struct akes_nbr_entry *next;
+  struct akes_nbr_entry *next;
 
   akes_print_group_key();
 
@@ -73,6 +76,7 @@ akes_update_group_key(void)
   akes_print_group_key();
 
   PRINTF("[KeyRev]: Number of permanent neighbors is %d\n", akes_nbr_count(AKES_NBR_PERMANENT));
+  PRINTF("[KeyRev]: Number of tentative neighbors is %d\n", akes_nbr_count(AKES_NBR_TENTATIVE));
   next = akes_nbr_head();
   while(next) {
     if(!next->permanent) {
@@ -86,4 +90,33 @@ akes_update_group_key(void)
     next = akes_nbr_next(next);
   }
 }
+#endif /* AKES_NBR_WITH_GROUP_KEYS */
 /*---------------------------------------------------------------------------*/
+int
+akes_revoke_node(const linkaddr_t *addr)
+{
+  struct akes_nbr_entry *entry;
+  entry = akes_nbr_get_entry(addr);
+
+  if(entry) {
+    enum akes_nbr_status status;
+    if (entry->tentative) {
+      status = AKES_NBR_TENTATIVE;
+    } else if(entry->permanent) {
+      status = AKES_NBR_PERMANENT;
+    } else {
+      PRINTF("[KeyRev]: Neighbor is neither tentative nor permanent. This should never happen!");
+      // TODO introduce status ENUM
+      return -2;
+    }
+    akes_nbr_delete(entry, status);
+  } else {
+    PRINTF("[KeyRev]: Node that should be revoked is not a neighbor.\n");
+    // TODO introduce status ENUM
+    return 1;
+  }
+  // TODO introduce status ENUM - NRL might be full
+  return revoke(addr);
+}
+/*---------------------------------------------------------------------------*/
+#endif /* KEY_REVOCATION_ENABLED */

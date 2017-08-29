@@ -51,7 +51,7 @@
 #define LIFETIME (60 * 60) /* seconds */
 #endif /* AKES_NBR_CONF_LIFETIME */
 
-#define DEBUG 0
+#define DEBUG 1
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) printf(__VA_ARGS__)

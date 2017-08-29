@@ -135,19 +135,19 @@
 /* configure LLSEC layer */
 #if 1
 #undef ADAPTIVESEC_CONF_UNICAST_SEC_LVL
-#define ADAPTIVESEC_CONF_UNICAST_SEC_LVL 2
+#define ADAPTIVESEC_CONF_UNICAST_SEC_LVL 6
 #undef ADAPTIVESEC_CONF_BROADCAST_SEC_LVL
-#define ADAPTIVESEC_CONF_BROADCAST_SEC_LVL 2
+#define ADAPTIVESEC_CONF_BROADCAST_SEC_LVL 6
 #undef LLSEC802154_CONF_USES_AUX_HEADER
 #define LLSEC802154_CONF_USES_AUX_HEADER 0
 #undef NBR_TABLE_CONF_MAX_NEIGHBORS
 #define NBR_TABLE_CONF_MAX_NEIGHBORS 14
-#if 0
+#if 1
 #include "net/llsec/adaptivesec/coresec-autoconf.h"
 #else
 #include "net/llsec/adaptivesec/noncoresec-autoconf.h"
 #endif
-#if 1
+#if 0
 #include "net/llsec/adaptivesec/potr-autoconf.h"
 #if 1
 #include "net/mac/contikimac/ilos-autoconf.h"
@@ -160,13 +160,17 @@
 
 /* set a seeder */
 #undef CSPRNG_CONF_SEEDER
-#define CSPRNG_CONF_SEEDER iq_seeder
+#define CSPRNG_CONF_SEEDER null_seeder
 
 /* configure Key Revocation */
-#define KEY_REVOCATION_ENABLED
+#define KEY_REVOCATION_ENABLED 1
+
+#define AKES_CONF_SCHEME akes_bloms_scheme
 
 #if 1
 #define DEBUG_CONF
 #endif
+
+// #define LINKADDR_CONF_SIZE 2
 
 #endif /* __PROJECT_ERBIUM_CONF_H__ */

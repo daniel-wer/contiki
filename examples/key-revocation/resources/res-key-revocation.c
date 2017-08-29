@@ -37,10 +37,6 @@
  *      Daniel Werner <daniel.werner@student.hpi.de>
  */
 
-#include "contiki.h"
-
-#ifdef KEY_REVOCATION_ENABLED
-
 #include <string.h>
 #include <math.h>
 #include "rest-engine.h"
@@ -55,6 +51,7 @@
 #define PRINTF(...)
 #endif /* DEBUG */
 
+#if KEY_REVOCATION_ENABLED
 /*---------------------------------------------------------------------------*/
 static void
 res_get_handler(void *request,
@@ -64,35 +61,36 @@ res_get_handler(void *request,
     int32_t *offset)
 {
   unsigned int accept;
+  const char *queryString;
   const char *msg = "Supporting content-types text/plain and application/json";
 
   accept = -1;
   REST.get_header_accept(request, &accept);
+  int debugQueryLen = REST.get_query_variable(request, "debug", &queryString);
 
-#if AKES_NBR_WITH_GROUP_KEYS
-  PRINTF("[KeyRev] Broadcast key:");
-  int i;
-  for(i = 0; i < AES_128_KEY_LENGTH; i++) {
-    PRINTF("%x", adaptivesec_group_key[i]);
-  }
-  PRINTF("\n");
-#endif /* AKES_NBR_WITH_GROUP_KEYS */
+  PRINTF("[KeyRev]: Received GET request asking for this debug value: %.*s\n", debugQueryLen, queryString);
+
+  // Print in hex
+  // int pos;
+  // for(pos = 0; pos < MIN(AES_128_KEY_LENGTH, REST_MAX_CHUNK_SIZE); pos++) {
+  //   buf_ptr += sprintf(buf_ptr, "%02X", adaptivesec_group_key[pos]);
+  // }
 
   if(accept == -1 || accept == REST.type.TEXT_PLAIN) {
     REST.set_header_content_type(response, REST.type.TEXT_PLAIN);
-    REST.set_response_payload(response, adaptivesec_group_key, AES_128_KEY_LENGTH);
-  } else if(accept == REST.type.APPLICATION_JSON) {
-    REST.set_header_content_type(response, REST.type.APPLICATION_JSON);
-    int pos;
-    char* buf_ptr = buffer;
-    buf_ptr += snprintf(buf_ptr, REST_MAX_CHUNK_SIZE, "{'Key':'");
-    // for(pos = 0; pos < MIN(AES_128_KEY_LENGTH, REST_MAX_CHUNK_SIZE); pos++) {
-    //   buf_ptr += sprintf(buf_ptr, "%02X", adaptivesec_group_key[pos]);
-    // }
-    memcpy(buf_ptr, adaptivesec_group_key, AES_128_KEY_LENGTH);
-    buf_ptr += AES_128_KEY_LENGTH;
-    snprintf(buf_ptr, REST_MAX_CHUNK_SIZE - (buf_ptr - (char *)buffer), "'}");
-    REST.set_response_payload(response, buffer, strlen((char *)buffer));
+
+    if(strncmp(queryString, "broadcastKey", debugQueryLen) == 0) {
+#if AKES_NBR_WITH_GROUP_KEYS
+      REST.set_response_payload(response, adaptivesec_group_key, AES_128_KEY_LENGTH);
+#endif /* AKES_NBR_WITH_GROUP_KEYS */
+    } else if(strncmp(queryString, "neighborCount", debugQueryLen) == 0) {
+      const uint8_t neighborCount = akes_nbr_count(AKES_NBR_PERMANENT) + akes_nbr_count(AKES_NBR_TENTATIVE);
+      char neighborCountStr[4];
+      sprintf(neighborCountStr, "%d", neighborCount);
+      REST.set_response_payload(response, neighborCountStr, 4);
+    } else {
+      PRINTF("[KeyRev]: Unknown debug parameter.");
+    }
   } else {
     REST.set_response_status(response, REST.status.NOT_ACCEPTABLE);
     REST.set_response_payload(response, msg, strlen(msg));
@@ -106,8 +104,33 @@ res_post_handler(void *request,
     uint16_t preferred_size,
     int32_t *offset)
 {
+  const char *revokedNodeIdString;
+  int revokedNodeIdLen = REST.get_post_variable(request, "node", &revokedNodeIdString);
+  if(revokedNodeIdLen > 0) {
+    if(revokedNodeIdLen != LINKADDR_SIZE) {
+      PRINTF("[KeyRev]: Node id to revoke has incorrect length, expected %d but was %d.\n", LINKADDR_SIZE, revokedNodeIdLen);
+      return;
+    }
+    uint8_t nodeId[LINKADDR_SIZE];
+    memcpy(nodeId, revokedNodeIdString, LINKADDR_SIZE);
+
+    PRINTF("[KeyRev]: Received POST revoking node with id: ");
+    int i;
+    for(i = 0; i < LINKADDR_SIZE; i++) {
+      PRINTF("%02X", nodeId[i]);
+    }
+    PRINTF("\n");
+
+    akes_revoke_node(nodeId);
+  }
+
+#if AKES_NBR_WITH_GROUP_KEYS
   PRINTF("[KeyRev]: Received POST to update group keys.\n");
   akes_update_group_key();
+
+#else
+  PRINTF("[KeyRev]: Received POST to update group keys, but AKES_NBR_WITH_GROUP_KEYS is not defined.\n");
+#endif /* AKES_NBR_WITH_GROUP_KEYS is not defined */
 }
 /*---------------------------------------------------------------------------*/
 RESOURCE(res_key_revocation,

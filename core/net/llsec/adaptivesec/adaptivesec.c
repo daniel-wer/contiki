@@ -60,7 +60,7 @@
 
 extern const struct framer DECORATED_FRAMER;
 
-#define DEBUG 0
+#define DEBUG 1
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) printf(__VA_ARGS__)
@@ -360,11 +360,13 @@ input(void)
   }
 }
 /*---------------------------------------------------------------------------*/
+#if AKES_NBR_WITH_GROUP_KEYS
 void
 adaptivesec_group_key_init(void)
 {
   csprng_rand(adaptivesec_group_key, AES_128_KEY_LENGTH);
 }
+#endif /* AKES_NBR_WITH_GROUP_KEYS */
 /*---------------------------------------------------------------------------*/
 static void
 init(void)
