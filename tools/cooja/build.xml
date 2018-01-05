@@ -107,6 +107,7 @@ The COOJA Simulator
     <java fork="yes" dir="${build}" classname="org.contikios.cooja.Cooja" maxmemory="512m">
       <sysproperty key="user.language" value="en"/>
       <arg line="${args}"/>
+      <jvmarg value="-Xshare:on"/>
       <env key="LD_LIBRARY_PATH" value="."/>
       <classpath>
         <pathelement path="${build}"/>

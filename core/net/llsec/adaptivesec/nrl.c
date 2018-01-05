@@ -32,12 +32,13 @@
 
 /**
  * \file
- *         Node revocation list.
+ *         Persisted Node Revocation List (NRL).
  * \author
  *         Daniel Werner <daniel.werner@student.hpi.de>
  */
 
 #include <stdint.h>
+#include "cfs/cfs.h"
 #include "net/llsec/adaptivesec/nrl.h"
 
 #ifdef REVOCATION_LIST_LENGTH_CONF
@@ -46,13 +47,29 @@
 #define REVOCATION_LIST_LENGTH 50
 #endif /* REVOCATION_LIST_LENGTH_CONF */
 
+#ifdef PERSIST_REVOCATION_LIST_CONF
+#define PERSIST_REVOCATION_LIST PERSIST_REVOCATION_LIST_CONF
+#else /* PERSIST_REVOCATION_LIST_CONF */
+#define PERSIST_REVOCATION_LIST 1
+#endif /* PERSIST_REVOCATION_LIST_CONF */
+
+#define FILENAME "node_revocation_list"
+
+#define DEBUG 1
+#if DEBUG
+#include <stdio.h>
+#define PRINTF(...) printf(__VA_ARGS__)
+#else /* DEBUG */
+#define PRINTF(...)
+#endif /* DEBUG */
+
 #if KEY_REVOCATION_ENABLED
-static const linkaddr_t *nrl[REVOCATION_LIST_LENGTH];
+static linkaddr_t nrl[REVOCATION_LIST_LENGTH];
 static uint16_t nrlLength = 0;
 
 
 int
-is_revoked(const linkaddr_t *addr)
+nrl_is_revoked(const linkaddr_t *addr)
 {
   int i;
   for(i = 0; i < nrlLength; i++) {
@@ -64,19 +81,72 @@ is_revoked(const linkaddr_t *addr)
 }
 
 int
-revoke(const linkaddr_t *addr)
+nrl_revoke(const linkaddr_t *addr)
 {
   if(nrlLength < REVOCATION_LIST_LENGTH) {
     memcpy(&nrl[nrlLength], addr, LINKADDR_SIZE);
+#if PERSIST_REVOCATION_LIST
+    int fd, bytesWritten;
+
+    fd = cfs_open(FILENAME, CFS_WRITE | CFS_APPEND);
+    if(fd < 0) {
+      PRINTF("Failed to open file %s\n", FILENAME);
+      return -1;
+    }
+
+    const char new_line = '\n';
+    bytesWritten = cfs_write(fd, addr, LINKADDR_SIZE);
+    bytesWritten += cfs_write(fd, &new_line, 1);
+    if(bytesWritten < LINKADDR_SIZE + 1) {
+      PRINTF("Failed to write to file %s\n", FILENAME);
+      cfs_close(fd);
+      return -1;
+    }
+
+    cfs_close(fd);
+#endif /* PERSIST_REVOCATION_LIST */
     return ++nrlLength;
   } else {
+    PRINTF("NRL contains %d entries and is full.\n", nrlLength);
     return -1;
   }
 }
 
 void
-clear()
+nrl_clear()
 {
   nrlLength = 0;
+#if PERSIST_REVOCATION_LIST
+  cfs_remove(FILENAME);
+#endif /* PERSIST_REVOCATION_LIST */
+}
+
+void
+nrl_init()
+{
+#if PERSIST_REVOCATION_LIST
+  int fd, bytesRead;
+
+  fd = cfs_open(FILENAME, CFS_READ | CFS_WRITE);
+  if(fd < 0) {
+    PRINTF("Failed to open file %s\n", FILENAME);
+    return;
+  }
+
+  for(;;) {
+    bytesRead = cfs_read(fd, &nrl[nrlLength], LINKADDR_SIZE);
+    if(bytesRead < LINKADDR_SIZE) {
+      break;
+    } else {
+      nrlLength++;
+      // Seek to next line
+      cfs_seek(fd, 1, CFS_SEEK_CUR);
+    }
+  }
+  PRINTF("Read %d entries from the persisted NRL.\n", nrlLength);
+
+  cfs_close(fd);
+
+#endif /* PERSIST_REVOCATION_LIST */
 }
 #endif /* KEY_REVOCATION_ENABLED */

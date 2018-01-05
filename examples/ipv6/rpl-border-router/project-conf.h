@@ -32,7 +32,7 @@
 #define PROJECT_ROUTER_CONF_H_
 
 #ifndef WITH_NON_STORING
-#define WITH_NON_STORING 0 /* Set this to run with non-storing mode */
+#define WITH_NON_STORING 1 /* Set this to run with non-storing mode */
 #endif /* WITH_NON_STORING */
 
 #if WITH_NON_STORING
@@ -75,7 +75,7 @@
 #endif
 
 /* configure RDC layer */
-#if 1
+#if 0
 #include "cpu/cc2538/dev/cc2538-rf-async-autoconf.h"
 #include "net/mac/contikimac/secrdc-autoconf.h"
 #elif 0
@@ -127,7 +127,7 @@
 #endif
 
 /* configure FRAMERs */
-#include "net/mac/contikimac/framer-autoconf.h"
+// #include "net/mac/contikimac/framer-autoconf.h"
 
 /* set a seeder */
 #undef CSPRNG_CONF_SEEDER
@@ -142,7 +142,7 @@
 /* configure Key Revocation */
 #define KEY_REVOCATION_ENABLED 1
 
-#define AKES_CONF_SCHEME akes_bloms_scheme
+#define AKES_CONF_SCHEME akes_single_scheme
 
 #define RF_CHANNEL 16
 // #define LINKADDR_CONF_SIZE 2

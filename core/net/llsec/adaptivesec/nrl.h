@@ -32,7 +32,7 @@
 
 /**
  * \file
- *         Node revocation list.
+ *         Persisted Node Revocation List (NRL).
  * \author
  *         Daniel Werner <daniel.werner@student.hpi.de>
  */
@@ -47,18 +47,23 @@
    * \retval 0 Node is not revoked
    * \retval 1 Node is revoked
    */
-int is_revoked(const linkaddr_t *addr);
+int nrl_is_revoked(const linkaddr_t *addr);
 
 /**
    * \brief 	Adds the node with link layer address addr to the node revocation list, if it is not full
    * \return    Current length of the node revocation list
    * \retval -1 Node revocation list is full, node was not revoked
    */
-int revoke(const linkaddr_t *addr);
+int nrl_revoke(const linkaddr_t *addr);
 
 /**
    * \brief Clears the node revocation list
    */
-void clear();
+void nrl_clear();
+
+/**
+   * \brief Initializes the node revocation list
+   */
+void nrl_init();
 
 #endif /* NRL_H_ */

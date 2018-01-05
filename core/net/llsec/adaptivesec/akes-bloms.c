@@ -44,7 +44,7 @@
 #include "lib/csprng.h"
 #include "net/linkaddr.h"
 
-#define DEBUG 1
+#define DEBUG 0
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) printf(__VA_ARGS__)
@@ -160,7 +160,7 @@ get_secret_with(const linkaddr_t *addr)
 }
 /*---------------------------------------------------------------------------*/
 static void
-update_secret_with(const linkaddr_t *addr, uint8_t *newSecret)
+update_secret_with(const linkaddr_t *addr, const uint8_t *newSecret, const int secretLen)
 {
 }
 /*---------------------------------------------------------------------------*/

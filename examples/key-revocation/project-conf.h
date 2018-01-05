@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Institute for Pervasive Computing, ETH Zurich
+ * Copyright (c) 2017, Hasso-Plattner-Institut.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,32 +27,41 @@
  * SUCH DAMAGE.
  *
  * This file is part of the Contiki operating system.
+ *
  */
 
 /**
  * \file
- *      Erbium (Er) example project configuration.
+ *      Key Revocation example project configuration.
  * \author
- *      Matthias Kovatsch <kovatsch@inf.ethz.ch>
+ *      Daniel Werner <daniel.werner@student.hpi.de>
  */
 
-#ifndef __PROJECT_ERBIUM_CONF_H__
-#define __PROJECT_ERBIUM_CONF_H__
+#ifndef __KEY_REVOCATION_CONF_H__
+#define __KEY_REVOCATION_CONF_H__
 
-/* Custom channel and PAN ID configuration for your project. */
 
-   #undef RF_CHANNEL
-   #define RF_CHANNEL                     16
+/* RPL Source Routing */
 
-   // #undef IEEE802154_CONF_PANID
-   // #define IEEE802154_CONF_PANID          0xABCD
- 
 
-/* IP buffer size must match all other hops, in particular the border router. */
-/*
-   #undef UIP_CONF_BUFFER_SIZE
-   #define UIP_CONF_BUFFER_SIZE           256
- */
+#ifndef WITH_NON_STORING
+#define WITH_NON_STORING 1 /* Set this to run with non-storing mode */
+#endif /* WITH_NON_STORING */
+
+#if WITH_NON_STORING
+#undef RPL_NS_CONF_LINK_NUM
+#define RPL_NS_CONF_LINK_NUM 40 /* Number of links maintained at the root */
+#undef UIP_CONF_MAX_ROUTES
+#define UIP_CONF_MAX_ROUTES 0 /* No need for routes */
+#undef RPL_CONF_MOP
+#define RPL_CONF_MOP RPL_MOP_NON_STORING /* Mode of operation*/
+#endif /* WITH_NON_STORING */
+
+
+
+/* COAP */
+
+
 
 /* Disabling RDC and CSMA for demo purposes. Core updates often
    require more memory. */
@@ -103,21 +112,15 @@
 /* Enable client-side support for COAP observe */
 #define COAP_OBSERVE_CLIENT 1
 
+
+
+/* ADAPTIVESEC */
+
+
+
 /* configure RDC layer */
-#if 1
-#include "cpu/cc2538/dev/cc2538-rf-async-autoconf.h"
-#include "net/mac/contikimac/secrdc-autoconf.h"
-#elif 0
-#undef CONTIKIMAC_CONF_COMPOWER
-#define CONTIKIMAC_CONF_COMPOWER 0
-#undef RDC_CONF_HARDWARE_CSMA
-#define RDC_CONF_HARDWARE_CSMA 1
-#undef NETSTACK_CONF_RDC
-#define NETSTACK_CONF_RDC contikimac_driver
-#else
-#undef NETSTACK_CONF_RDC
-#define NETSTACK_CONF_RDC nullrdc_driver
-#endif
+// #include "cpu/cc2538/dev/cc2538-rf-async-autoconf.h"
+// #include "net/mac/contikimac/secrdc-autoconf.h"
 
 /* configure MAC layer */
 #if 1
@@ -156,16 +159,28 @@
 #endif
 
 /* configure FRAMERs */
-#include "net/mac/contikimac/framer-autoconf.h"
+// #include "net/mac/contikimac/framer-autoconf.h"
+
+#define AKES_CONF_SCHEME akes_single_scheme
+
+
+
+/* KEY REVOCATION */
+
+
+
+#undef RF_CHANNEL
+#define RF_CHANNEL                     16
 
 /* set a seeder */
 #undef CSPRNG_CONF_SEEDER
 #define CSPRNG_CONF_SEEDER null_seeder
 
+// #undef AES_128_CONF
+// #define AES_128_CONF cc2538_aes_128_driver /* AES-128 driver */
+
 /* configure Key Revocation */
 #define KEY_REVOCATION_ENABLED 1
-
-#define AKES_CONF_SCHEME akes_bloms_scheme
 
 #if 1
 #define DEBUG_CONF
@@ -173,4 +188,4 @@
 
 // #define LINKADDR_CONF_SIZE 2
 
-#endif /* __PROJECT_ERBIUM_CONF_H__ */
+#endif /* __KEY_REVOCATION_CONF_H__ */

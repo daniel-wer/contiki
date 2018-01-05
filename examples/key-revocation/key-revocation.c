@@ -44,24 +44,21 @@
 #include "contiki.h"
 #include "contiki-net.h"
 #include "rest-engine.h"
-#include "net/ip/uip.h"
-#include "net/ipv6/uip-ds6.h"
+#include "uip-debug.h"
 
 #if PLATFORM_HAS_BUTTON
 #include "dev/button-sensor.h"
 #endif
 
+#define UIP_IP_BUF   ((struct uip_ip_hdr *)&uip_buf[UIP_LLH_LEN])
+
 #define DEBUG 1
-#if DEBUG
-#include <stdio.h>
-#define PRINTF(...) printf(__VA_ARGS__)
-#define PRINT6ADDR(addr) PRINTF("[%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x]", ((uint8_t *)addr)[0], ((uint8_t *)addr)[1], ((uint8_t *)addr)[2], ((uint8_t *)addr)[3], ((uint8_t *)addr)[4], ((uint8_t *)addr)[5], ((uint8_t *)addr)[6], ((uint8_t *)addr)[7], ((uint8_t *)addr)[8], ((uint8_t *)addr)[9], ((uint8_t *)addr)[10], ((uint8_t *)addr)[11], ((uint8_t *)addr)[12], ((uint8_t *)addr)[13], ((uint8_t *)addr)[14], ((uint8_t *)addr)[15])
-#define PRINTLLADDR(lladdr) PRINTF("[%02x:%02x:%02x:%02x:%02x:%02x]", (lladdr)->addr[0], (lladdr)->addr[1], (lladdr)->addr[2], (lladdr)->addr[3], (lladdr)->addr[4], (lladdr)->addr[5])
-#else
-#define PRINTF(...)
-#define PRINT6ADDR(addr)
-#define PRINTLLADDR(addr)
-#endif
+// #if DEBUG
+// #include <stdio.h>
+// #define PRINTF(...) printf(__VA_ARGS__)
+// #else
+// #define PRINTF(...)
+// #endif
 
 /*
  * Resources to be activated need to be imported through the extern keyword.
@@ -89,6 +86,17 @@ print_local_addresses(void) {
   }
 }
 
+static void
+set_own_address(void)
+{
+  uip_ipaddr_t addr;
+
+  /* First, set our v6 global */
+  uip_ip6addr(&addr, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0, 0, 0, 0);
+  uip_ds6_set_addr_iid(&addr, &uip_lladdr);
+  uip_ds6_addr_add(&addr, 0, ADDR_AUTOCONF);
+}
+
 PROCESS(key_revocation_server, "Key Revocation CoAP Server");
 AUTOSTART_PROCESSES(&key_revocation_server);
 
@@ -97,6 +105,8 @@ PROCESS_THREAD(key_revocation_server, ev, data)
   PROCESS_BEGIN();
 
   PROCESS_PAUSE();
+
+  set_own_address();
 
   PRINTF("Starting Key Revocation CoAP Server\n");
 

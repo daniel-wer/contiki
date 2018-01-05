@@ -61,9 +61,11 @@ get_secret_with(const linkaddr_t *addr)
 }
 /*---------------------------------------------------------------------------*/
 static void
-update_secret_with(const linkaddr_t *addr, uint8_t *newSecret)
+update_secret_with(const linkaddr_t *addr, const uint8_t *newSecret, const int secretLen)
 {
-  memcpy(key, newSecret, AES_128_KEY_LENGTH);
+  if (secretLen >= AES_128_KEY_LENGTH) {
+    memcpy(key, newSecret, AES_128_KEY_LENGTH);
+  }
 }
 /*---------------------------------------------------------------------------*/
 static void

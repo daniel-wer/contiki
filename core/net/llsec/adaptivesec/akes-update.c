@@ -41,6 +41,7 @@
 #include "net/llsec/adaptivesec/akes-update.h"
 #include "net/llsec/adaptivesec/akes.h"
 #include "net/llsec/adaptivesec/nrl.h"
+#include "net/rpl/rpl.h"
 
 #define DEBUG 1
 #if DEBUG
@@ -95,28 +96,61 @@ akes_update_group_key(void)
 int
 akes_revoke_node(const linkaddr_t *addr)
 {
+  // Add compromised node to Node Revocation List
+  if (nrl_revoke(addr) < 0) {
+    return ERROR_NRL_FULL;
+  }
+
   struct akes_nbr_entry *entry;
   entry = akes_nbr_get_entry(addr);
 
   if(entry) {
+    // Remove compromised node from AKES neighbor table
     enum akes_nbr_status status;
     if (entry->tentative) {
       status = AKES_NBR_TENTATIVE;
     } else if(entry->permanent) {
       status = AKES_NBR_PERMANENT;
     } else {
-      PRINTF("[KeyRev]: Neighbor is neither tentative nor permanent. This should never happen!");
-      // TODO introduce status ENUM
-      return -2;
+      PRINTF("[KeyRev]: Neighbor is neither tentative nor permanent. This should never happen!\n");
+      return ERROR;
     }
     akes_nbr_delete(entry, status);
+
+    // Possibly remove compromised node from rpl_parents table
+    rpl_dag_t *dag = rpl_get_any_dag();
+    rpl_parent_t *p;
+    rpl_parent_t *any_parent;
+    p = nbr_table_head(rpl_parents);
+    while(p != NULL) {
+      const linkaddr_t *lladdr = rpl_get_parent_lladdr(p);
+      if(dag == p->dag && linkaddr_cmp(lladdr, addr) != 0) {
+        int isPreferredParent = p == dag->preferred_parent;
+        rpl_remove_parent(p);
+        if (isPreferredParent) {
+          // If the deleted parent was the preferred parent, trigger the selection of a new preferred parent
+          any_parent = nbr_table_head(rpl_parents);
+          rpl_select_dag(dag->instance, any_parent);
+        }
+        break;
+      }
+      p = nbr_table_next(rpl_parents, p);
+    }
   } else {
     PRINTF("[KeyRev]: Node that should be revoked is not a neighbor.\n");
-    // TODO introduce status ENUM
-    return 1;
+    return SUCCESS;
   }
-  // TODO introduce status ENUM - NRL might be full
-  return revoke(addr);
+
+#if AKES_NBR_WITH_GROUP_KEYS
+  PRINTF("[KeyRev]: Update group session key as a neighbor node was compromised.\n");
+  akes_update_group_key();
+  PRINTF("[KeyRev]: Group session key update completed.\n");
+
+#else
+  PRINTF("[KeyRev]: AKES_NBR_WITH_GROUP_KEYS is not defined, so there is no need to update the group session key.\n");
+#endif /* AKES_NBR_WITH_GROUP_KEYS */
+
+  return SUCCESS;
 }
 /*---------------------------------------------------------------------------*/
 #endif /* KEY_REVOCATION_ENABLED */

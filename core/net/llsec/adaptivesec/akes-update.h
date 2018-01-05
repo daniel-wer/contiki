@@ -42,6 +42,8 @@
 
 #include "net/linkaddr.h"
 
+enum REVOCATION_STATUS {SUCCESS, ERROR, ERROR_INCORRECT_FORMAT, ERROR_NRL_FULL};
+
 void akes_update_group_key(void);
 int akes_revoke_node(const linkaddr_t *addr);
 

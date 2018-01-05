@@ -36,6 +36,10 @@ MODULES += core/net/llsec/adaptivesec
 CONTIKI_WITH_IPV6 = 1
 include $(CONTIKI)/Makefile.include
 
+ifeq ($(MAKE_WITH_NON_STORING),1)
+CFLAGS += -DWITH_NON_STORING=1
+endif
+
 # minimal-net target is currently broken in Contiki
 ifeq ($(TARGET), minimal-net)
 CFLAGS += -DHARD_CODED_ADDRESS=\"fdfd::10\"

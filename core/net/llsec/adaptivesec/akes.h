@@ -112,7 +112,7 @@ struct akes_scheme {
   /**
    *
    */
-  void (* update_secret_with_sender)(const linkaddr_t *addr, uint8_t *newSecret);
+  void (* update_secret_with_sender)(const linkaddr_t *addr, const uint8_t *newSecret, const int secretLen);
 };
 
 extern const struct akes_scheme AKES_SCHEME;

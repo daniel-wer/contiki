@@ -356,7 +356,7 @@ send_helloack(void *ptr)
   entry = (struct akes_nbr_entry *)ptr;
 
 #if KEY_REVOCATION_ENABLED
-  if(is_revoked(akes_nbr_get_addr(entry))) {
+  if(nrl_is_revoked(akes_nbr_get_addr(entry))) {
     PRINTF("akes: HELLO sender is revoked, communication aborted\n");
     return;
   }
@@ -418,7 +418,7 @@ on_helloack(uint8_t *payload, int p_flag)
   PRINTF("akes: Received HELLOACK\n");
 
 #if KEY_REVOCATION_ENABLED
-  if(is_revoked(packetbuf_addr(PACKETBUF_ADDR_SENDER))) {
+  if(nrl_is_revoked(packetbuf_addr(PACKETBUF_ADDR_SENDER))) {
     PRINTF("akes: HELLOACK sender is revoked, communication aborted\n");
     return CMD_BROKER_ERROR;
   }
@@ -727,6 +727,9 @@ akes_init(void)
 {
   leaky_bucket_init(&hello_bucket, MAX_CONSECUTIVE_HELLOS, MAX_HELLO_RATE);
   leaky_bucket_init(&helloack_bucket, MAX_CONSECUTIVE_HELLOACKS, MAX_HELLOACK_RATE);
+#if KEY_REVOCATION_ENABLED
+  nrl_init();
+#endif /* KEY_REVOCATION_ENABLED */
   subscription.on_command = on_command;
   cmd_broker_subscribe(&subscription);
   akes_nbr_init();
