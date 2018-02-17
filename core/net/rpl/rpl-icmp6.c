@@ -55,6 +55,7 @@
 #include "net/packetbuf.h"
 #include "net/ipv6/multicast/uip-mcast6.h"
 #include "random.h"
+#include "cpu/cc2538/dev/cc2538-rf-async.h"
 
 #include <limits.h>
 #include <string.h>
@@ -1007,7 +1008,7 @@ dao_input(void)
 {
   rpl_instance_t *instance;
   uint8_t instance_id;
-
+  /* printf("Receive DAO: %u\n", get_rx()); */
   /* Destination Advertisement Object */
   PRINTF("RPL: Received a DAO from ");
   PRINT6ADDR(&UIP_IP_BUF->srcipaddr);
@@ -1144,7 +1145,7 @@ dao_output_target_seq(rpl_parent_t *parent, uip_ipaddr_t *prefix,
   uip_ipaddr_t *dest_ipaddr = NULL;
 
   /* Destination Advertisement Object */
-
+  packetbuf_set_attr(PACKETBUF_ATTR_TIME_TYPE_SCHED, 2);
   /* If we are in feather mode, we should not send any DAOs */
   if(rpl_get_mode() == RPL_MODE_FEATHER) {
     return;

@@ -59,6 +59,7 @@
 #endif /* LPM_CONF_ENABLE */
 #include "lib/random.h"
 #include "lib/csprng.h"
+#include "cpu/cc2538/dev/cc2538-rf-async.h"
 
 #ifdef SECRDC_CONF_WITH_DOZING
 #define WITH_DOZING SECRDC_CONF_WITH_DOZING
@@ -490,7 +491,8 @@ duty_cycle(void)
 #ifdef LPM_CONF_ENABLE
   lpm_set_max_pm(1);
 #endif /* LPM_CONF_ENABLE */
-
+  // TODOX reset_rx()
+  reset_rx();
   /* CCAs */
   while(1) {
     NETSTACK_RADIO_ASYNC.on();
@@ -956,6 +958,10 @@ PROCESS_THREAD(post_processing, ev, data)
         u.strobe.bf = list_head(buffered_frames_list);
         queuebuf_to_packetbuf(u.strobe.bf->qb);
         u.strobe.is_broadcast = packetbuf_holds_broadcast();
+        // TODOX strobe starts, if(packetbuf attribute = our_attribute) reset_timer
+        if (packetbuf_attr(PACKETBUF_ATTR_TIME_TYPE) > 0) {
+          reset_tx();
+        }
 
 #if ILOS_ENABLED
         if(u.strobe.is_broadcast) {
@@ -1498,6 +1504,20 @@ on_strobed(void)
   if(u.strobe.bf->allocated_qb) {
     queuebuf_free(u.strobe.bf->qb);
   }
+  // TODOX strobe finished
+/*   if (packetbuf_attr(PACKETBUF_ATTR_TIME_TYPE) > 0 && u.strobe.result == MAC_TX_OK) {
+    switch (packetbuf_attr(PACKETBUF_ATTR_TIME_TYPE)) {
+      case 1:
+        printf("Ticks/Strobes for sending AKES UPDATE: %u %u\n", get_tx(), u.strobe.strobes + 1);
+        break;
+      case 2:
+        printf("Ticks/Strobes for sending RPL DAO: %u %u\n", get_tx(), u.strobe.strobes + 1);
+        break;
+      case 3:
+        printf("Ticks/Strobes for sending Key Revocation Response: %u %u\n", get_tx(), u.strobe.strobes + 1);
+        break;
+    }
+  } */
   mac_call_sent_callback(u.strobe.bf->sent,
       u.strobe.bf->ptr,
       u.strobe.result,

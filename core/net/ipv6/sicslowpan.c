@@ -1283,9 +1283,10 @@ output(const uip_lladdr_t *localdest)
   /* init */
   uncomp_hdr_len = 0;
   packetbuf_hdr_len = 0;
-
+  packetbuf_attr_t test = packetbuf_attr(PACKETBUF_ATTR_TIME_TYPE_SCHED);
   /* reset packetbuf buffer */
   packetbuf_clear();
+  packetbuf_set_attr(PACKETBUF_ATTR_TIME_TYPE, test);
   packetbuf_ptr = packetbuf_dataptr();
 
   if(callback) {

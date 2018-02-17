@@ -50,6 +50,8 @@
 #include "lib/random.h"
 #include "lib/leaky-bucket.h"
 #include <string.h>
+#include "cpu/cc2538/dev/cc2538-rf-async.h"
+#include "dev/watchdog.h"
 
 #ifdef AKES_CONF_MAX_HELLO_RATE
 #define MAX_HELLO_RATE AKES_CONF_MAX_HELLO_RATE
@@ -75,7 +77,7 @@
 #define MAX_CONSECUTIVE_HELLOACKS (10)
 #endif /* AKES_CONF_MAX_CONSECUTIVE_HELLOACKS */
 
-#define DEBUG 1
+#define DEBUG 0
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) printf(__VA_ARGS__)
@@ -614,6 +616,7 @@ void
 akes_send_update(struct akes_nbr_entry *entry)
 {
   prepare_update_command(AKES_UPDATE_IDENTIFIER, entry, AKES_NBR_PERMANENT);
+  packetbuf_set_attr(PACKETBUF_ATTR_TIME_TYPE, 1);
   NETSTACK_MAC.send(akes_delete_on_update_sent, NULL);
 }
 /*---------------------------------------------------------------------------*/
@@ -621,7 +624,9 @@ static enum cmd_broker_result
 on_update(uint8_t cmd_id, uint8_t *payload)
 {
   struct akes_nbr_entry *entry;
-
+/*   if (cmd_id == AKES_UPDATE_IDENTIFIER) {
+    printf("Receive AKES UPDATE: %u\n", get_rx());
+  } */
   PRINTF("akes: Received %s\n", (cmd_id == AKES_UPDATE_IDENTIFIER) ? "UPDATE" : "UPDATEACK");
 
   entry = akes_nbr_get_sender_entry();
@@ -722,6 +727,7 @@ akes_get_receiver_status(void)
   }
 }
 /*---------------------------------------------------------------------------*/
+/* struct ctimer reset_timer; */
 void
 akes_init(void)
 {
@@ -736,5 +742,10 @@ akes_init(void)
   AKES_SCHEME.init();
   akes_delete_init();
   akes_trickle_start();
+/*   // RESET node after 5min
+  ctimer_set(&reset_timer,
+      5 * 60 * CLOCK_SECOND,
+      watchdog_reboot,
+      NULL); */
 }
 /*---------------------------------------------------------------------------*/

@@ -41,6 +41,7 @@
 #include "contiki.h"
 #include "sys/cc.h"
 #include "contiki-net.h"
+#include "net/packetbuf.h"
 
 #include "er-coap.h"
 #include "er-coap-transactions.h"
@@ -429,7 +430,7 @@ coap_send_message(uip_ipaddr_t *addr, uint16_t port, uint8_t *data,
   /* configure connection to reply to client */
   uip_ipaddr_copy(&udp_conn->ripaddr, addr);
   udp_conn->rport = port;
-
+  packetbuf_set_attr(PACKETBUF_ATTR_TIME_TYPE_SCHED, 3);
   uip_udp_packet_send(udp_conn, data, length);
 
   PRINTF("-sent UDP datagram (%u)-\n", length);

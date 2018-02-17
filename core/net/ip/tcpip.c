@@ -648,10 +648,10 @@ tcpip_ipv6_output(void)
         static uint8_t annotate_last;
         static uint8_t annotate_has_last = 0;
 
-        if(annotate_has_last) {
+        /* if(annotate_has_last) {
           printf("#L %u 0; red\n", annotate_last);
         }
-        printf("#L %u 1; red\n", nexthop->u8[sizeof(uip_ipaddr_t) - 1]);
+        printf("#L %u 1; red\n", nexthop->u8[sizeof(uip_ipaddr_t) - 1]); */
         annotate_last = nexthop->u8[sizeof(uip_ipaddr_t) - 1];
         annotate_has_last = 1;
       }

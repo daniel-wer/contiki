@@ -48,6 +48,7 @@
 #include "dev/sys-ctrl.h"
 #include "reg.h"
 #include <string.h>
+#include "dev/cc2538-rf-async.h"
 
 #define CRC_BIT_MASK 0x80
 #define LQI_BIT_MASK 0x7F
@@ -288,11 +289,23 @@ prepare(const void *payload, unsigned short payload_len)
   return RADIO_TX_OK;
 }
 /*---------------------------------------------------------------------------*/
+rtimer_clock_t tx_start;
+rtimer_clock_t rx_start;
+rtimer_clock_t rx_acc = 0;
+rtimer_clock_t tx_acc = 0;
+rtimer_clock_t get_rx(void) { return rx_acc; }
+void reset_rx(void) { rx_acc = 0; }
+rtimer_clock_t get_tx(void) { return tx_acc; }
+void reset_tx(void) { tx_acc = 0; }
 static int
 transmit(void)
 {
+  if (in_rx_mode) {
+    rx_acc += RTIMER_NOW() - rx_start;
+  }
   in_rx_mode = 0;
   in_tx_mode = 1;
+  tx_start = RTIMER_NOW();
   CC2538_RF_CSP_ISTXON();
   if(!is_tx_active()) {
     PRINTF("cc2538-rf-async: TX was never active\n");
@@ -338,6 +351,7 @@ on(void)
     return;
   }
 
+  rx_start = RTIMER_NOW();
   CC2538_RF_CSP_ISRXON();
   in_rx_mode = 1;
 }
@@ -348,6 +362,12 @@ off(void)
   if(!in_rx_mode && !in_tx_mode) {
     PRINTF("cc2538-rf-async: already off\n");
     return;
+  }
+  if (in_rx_mode) {
+    rx_acc += RTIMER_NOW() - rx_start;
+  }
+  if (in_tx_mode) {
+    tx_acc += RTIMER_NOW() - tx_start;
   }
 
   CC2538_RF_CSP_ISRFOFF();
@@ -443,6 +463,8 @@ cc2538_rf_async_rxtx_isr(void)
     if(in_tx_mode) {
       in_tx_mode = 0;
       in_rx_mode = 1;
+      tx_acc += RTIMER_NOW() - tx_start;
+      rx_start = RTIMER_NOW();
     }
     if(txdone_callback) {
       txdone_callback();
