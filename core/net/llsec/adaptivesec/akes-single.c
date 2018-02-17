@@ -60,12 +60,14 @@ get_secret_with(const linkaddr_t *addr)
   return (uint8_t *)key;
 }
 /*---------------------------------------------------------------------------*/
-static void
-update_secret_with(const linkaddr_t *addr, const uint8_t *newSecret, const int secretLen)
+static int
+update_secret_with(const linkaddr_t *addr, const uint8_t *new_secret, const int secret_len)
 {
-  if (secretLen >= AES_128_KEY_LENGTH) {
-    memcpy(key, newSecret, AES_128_KEY_LENGTH);
+  if (secret_len >= AES_128_KEY_LENGTH) {
+    memcpy(key, new_secret, AES_128_KEY_LENGTH);
+    return 0;
   }
+  return 1;
 }
 /*---------------------------------------------------------------------------*/
 static void

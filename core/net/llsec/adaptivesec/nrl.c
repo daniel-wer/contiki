@@ -55,7 +55,7 @@
 
 #define FILENAME "node_revocation_list"
 
-#define DEBUG 1
+#define DEBUG 0
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) printf(__VA_ARGS__)
@@ -65,14 +65,14 @@
 
 #if KEY_REVOCATION_ENABLED
 static linkaddr_t nrl[REVOCATION_LIST_LENGTH];
-static uint16_t nrlLength = 0;
+static uint16_t nrl_length = 0;
 
 
 int
 nrl_is_revoked(const linkaddr_t *addr)
 {
   int i;
-  for(i = 0; i < nrlLength; i++) {
+  for(i = 0; i < nrl_length; i++) {
     if(memcmp(&nrl[i], addr, LINKADDR_SIZE) == 0) {
       return 1;
     }
@@ -83,67 +83,67 @@ nrl_is_revoked(const linkaddr_t *addr)
 int
 nrl_revoke(const linkaddr_t *addr)
 {
-  if(nrlLength < REVOCATION_LIST_LENGTH) {
-    memcpy(&nrl[nrlLength], addr, LINKADDR_SIZE);
+  if(nrl_length < REVOCATION_LIST_LENGTH) {
+    memcpy(&nrl[nrl_length], addr, LINKADDR_SIZE);
 #if PERSIST_REVOCATION_LIST
-    int fd, bytesWritten;
+    int fd, bytes_written;
 
     fd = cfs_open(FILENAME, CFS_WRITE | CFS_APPEND);
     if(fd < 0) {
-      PRINTF("Failed to open file %s\n", FILENAME);
+      PRINTF("nrl: Failed to open file %s\n", FILENAME);
       return -1;
     }
 
     const char new_line = '\n';
-    bytesWritten = cfs_write(fd, addr, LINKADDR_SIZE);
-    bytesWritten += cfs_write(fd, &new_line, 1);
-    if(bytesWritten < LINKADDR_SIZE + 1) {
-      PRINTF("Failed to write to file %s\n", FILENAME);
+    bytes_written = cfs_write(fd, addr, LINKADDR_SIZE);
+    bytes_written += cfs_write(fd, &new_line, 1);
+    if(bytes_written < LINKADDR_SIZE + 1) {
+      PRINTF("nrl: Failed to write to file %s\n", FILENAME);
       cfs_close(fd);
       return -1;
     }
 
     cfs_close(fd);
 #endif /* PERSIST_REVOCATION_LIST */
-    return ++nrlLength;
+    return ++nrl_length;
   } else {
-    PRINTF("NRL contains %d entries and is full.\n", nrlLength);
+    PRINTF("nrl: NRL contains %d entries and is full.\n", nrl_length);
     return -1;
   }
 }
 
 void
-nrl_clear()
+nrl_clear(void)
 {
-  nrlLength = 0;
+  nrl_length = 0;
 #if PERSIST_REVOCATION_LIST
   cfs_remove(FILENAME);
 #endif /* PERSIST_REVOCATION_LIST */
 }
 
 void
-nrl_init()
+nrl_init(void)
 {
 #if PERSIST_REVOCATION_LIST
-  int fd, bytesRead;
+  int fd, bytes_read;
 
   fd = cfs_open(FILENAME, CFS_READ | CFS_WRITE);
   if(fd < 0) {
-    PRINTF("Failed to open file %s\n", FILENAME);
+    PRINTF("nrl: Failed to open file %s\n", FILENAME);
     return;
   }
 
   for(;;) {
-    bytesRead = cfs_read(fd, &nrl[nrlLength], LINKADDR_SIZE);
-    if(bytesRead < LINKADDR_SIZE) {
+    bytes_read = cfs_read(fd, &nrl[nrl_length], LINKADDR_SIZE);
+    if(bytes_read < LINKADDR_SIZE) {
       break;
     } else {
-      nrlLength++;
-      // Seek to next line
+      nrl_length++;
+      /* Seek to next line */
       cfs_seek(fd, 1, CFS_SEEK_CUR);
     }
   }
-  PRINTF("Read %d entries from the persisted NRL.\n", nrlLength);
+  PRINTF("nrl: Read %d entries from the persisted NRL.\n", nrl_length);
 
   cfs_close(fd);
 

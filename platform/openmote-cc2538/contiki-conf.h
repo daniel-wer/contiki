@@ -131,15 +131,9 @@ typedef uint32_t rtimer_clock_t;
  *
  * @{
  */
-#ifdef DEBUG_CONF
-  #ifndef WATCHDOG_CONF_ENABLE
-  #define WATCHDOG_CONF_ENABLE        0 /**< Disable the watchdog timer */
-  #endif /* WATCHDOG_CONF_ENABLE */
-#else
-  #ifndef WATCHDOG_CONF_ENABLE
-  #define WATCHDOG_CONF_ENABLE        1 /**< Enable the watchdog timer */
-  #endif /* WATCHDOG_CONF_ENABLE */
-#endif /* DEBUG_CONF */
+#ifndef WATCHDOG_CONF_ENABLE
+#define WATCHDOG_CONF_ENABLE        1 /**< Enable the watchdog timer */
+#endif /* WATCHDOG_CONF_ENABLE */
 /** @} */
 /*---------------------------------------------------------------------------*/
 /**

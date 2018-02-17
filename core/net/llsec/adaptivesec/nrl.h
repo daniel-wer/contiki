@@ -59,11 +59,11 @@ int nrl_revoke(const linkaddr_t *addr);
 /**
    * \brief Clears the node revocation list
    */
-void nrl_clear();
+void nrl_clear(void);
 
 /**
    * \brief Initializes the node revocation list
    */
-void nrl_init();
+void nrl_init(void);
 
 #endif /* NRL_H_ */

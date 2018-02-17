@@ -4,8 +4,6 @@ CONTIKI=../..
 
 CFLAGS += -DPROJECT_CONF_H=\"project-conf.h\"
 
-DEBUG_CONF=1
-
 # automatically build RESTful resources
 REST_RESOURCES_DIR = ./resources
 ifndef TARGET

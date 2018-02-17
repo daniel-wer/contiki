@@ -41,6 +41,9 @@
 #define __KEY_REVOCATION_CONF_H__
 
 
+#define EXECUTE_ON_MOTE 0
+
+
 /* RPL Source Routing */
 
 
@@ -50,7 +53,7 @@
 
 #if WITH_NON_STORING
 #undef RPL_NS_CONF_LINK_NUM
-#define RPL_NS_CONF_LINK_NUM 40 /* Number of links maintained at the root */
+#define RPL_NS_CONF_LINK_NUM 105 /* Number of links maintained at the root */
 #undef UIP_CONF_MAX_ROUTES
 #define UIP_CONF_MAX_ROUTES 0 /* No need for routes */
 #undef RPL_CONF_MOP
@@ -62,12 +65,14 @@
 /* COAP */
 
 
-
-/* Disabling RDC and CSMA for demo purposes. Core updates often
-   require more memory. */
 /* For projects, optimize memory and enable RDC and CSMA again. */
+#if EXECUTE_ON_MOTE
+#undef NETSTACK_CONF_RDC
+#define NETSTACK_CONF_RDC              contikimac_driver
+#else
 #undef NETSTACK_CONF_RDC
 #define NETSTACK_CONF_RDC              nullrdc_driver
+#endif
 
 #undef RPL_CONF_MAX_DAG_PER_INSTANCE
 #define RPL_CONF_MAX_DAG_PER_INSTANCE     1
@@ -119,8 +124,10 @@
 
 
 /* configure RDC layer */
-// #include "cpu/cc2538/dev/cc2538-rf-async-autoconf.h"
-// #include "net/mac/contikimac/secrdc-autoconf.h"
+#if EXECUTE_ON_MOTE
+#include "cpu/cc2538/dev/cc2538-rf-async-autoconf.h"
+#include "net/mac/contikimac/secrdc-autoconf.h"
+#endif
 
 /* configure MAC layer */
 #if 1
@@ -159,7 +166,9 @@
 #endif
 
 /* configure FRAMERs */
-// #include "net/mac/contikimac/framer-autoconf.h"
+#if EXECUTE_ON_MOTE
+#include "net/mac/contikimac/framer-autoconf.h"
+#endif
 
 #define AKES_CONF_SCHEME akes_single_scheme
 
@@ -176,15 +185,15 @@
 #undef CSPRNG_CONF_SEEDER
 #define CSPRNG_CONF_SEEDER null_seeder
 
-// #undef AES_128_CONF
-// #define AES_128_CONF cc2538_aes_128_driver /* AES-128 driver */
+#if EXECUTE_ON_MOTE
+#undef AES_128_CONF
+#define AES_128_CONF cc2538_aes_128_driver
+#endif
 
 /* configure Key Revocation */
 #define KEY_REVOCATION_ENABLED 1
 
-#if 1
-#define DEBUG_CONF
-#endif
+#define UIP_CONF_STATISTICS 1
 
 // #define LINKADDR_CONF_SIZE 2
 

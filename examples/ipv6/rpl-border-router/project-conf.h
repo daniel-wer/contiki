@@ -31,13 +31,15 @@
 #ifndef PROJECT_ROUTER_CONF_H_
 #define PROJECT_ROUTER_CONF_H_
 
+#define EXECUTE_ON_MOTE 0
+
 #ifndef WITH_NON_STORING
 #define WITH_NON_STORING 1 /* Set this to run with non-storing mode */
 #endif /* WITH_NON_STORING */
 
 #if WITH_NON_STORING
 #undef RPL_NS_CONF_LINK_NUM
-#define RPL_NS_CONF_LINK_NUM 40 /* Number of links maintained at the root */
+#define RPL_NS_CONF_LINK_NUM 105 /* Number of links maintained at the root */
 #undef UIP_CONF_MAX_ROUTES
 #define UIP_CONF_MAX_ROUTES 0 /* No need for routes */
 #undef RPL_CONF_MOP
@@ -74,8 +76,13 @@
 #define AES_128_CONF aes_128_driver
 #endif
 
+#if EXECUTE_ON_MOTE
+#undef AES_128_CONF
+#define AES_128_CONF cc2538_aes_128_driver /* AES-128 driver */
+#endif
+
 /* configure RDC layer */
-#if 0
+#if EXECUTE_ON_MOTE
 #include "cpu/cc2538/dev/cc2538-rf-async-autoconf.h"
 #include "net/mac/contikimac/secrdc-autoconf.h"
 #elif 0
@@ -127,7 +134,9 @@
 #endif
 
 /* configure FRAMERs */
-// #include "net/mac/contikimac/framer-autoconf.h"
+#if EXECUTE_ON_MOTE
+#include "net/mac/contikimac/framer-autoconf.h"
+#endif
 
 /* set a seeder */
 #undef CSPRNG_CONF_SEEDER

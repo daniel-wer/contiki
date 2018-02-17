@@ -42,8 +42,9 @@
 #include "net/llsec/adaptivesec/akes.h"
 #include "net/llsec/adaptivesec/nrl.h"
 #include "net/rpl/rpl.h"
+#include "cpu/cc2538/dev/cc2538-rf-async.h"
 
-#define DEBUG 1
+#define DEBUG 0
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) printf(__VA_ARGS__)
@@ -56,7 +57,7 @@
 void
 akes_print_group_key(void)
 {
-  PRINTF("[KeyRev] Broadcast key:");
+  PRINTF("key-rev: Broadcast key:");
   int i;
   for(i = 0; i < AES_128_KEY_LENGTH; i++) {
     PRINTF("%x", adaptivesec_group_key[i]);
@@ -72,12 +73,12 @@ akes_update_group_key(void)
   akes_print_group_key();
 
   adaptivesec_group_key_init();
-  PRINTF("[KeyRev]: Renew broadcast key\n");
+  PRINTF("key-rev: Renew broadcast key\n");
   
   akes_print_group_key();
 
-  PRINTF("[KeyRev]: Number of permanent neighbors is %d\n", akes_nbr_count(AKES_NBR_PERMANENT));
-  PRINTF("[KeyRev]: Number of tentative neighbors is %d\n", akes_nbr_count(AKES_NBR_TENTATIVE));
+  PRINTF("key-rev: Number of permanent neighbors is %d\n", akes_nbr_count(AKES_NBR_PERMANENT));
+  PRINTF("key-rev: Number of tentative neighbors is %d\n", akes_nbr_count(AKES_NBR_TENTATIVE));
   next = akes_nbr_head();
   while(next) {
     if(!next->permanent) {
@@ -85,39 +86,41 @@ akes_update_group_key(void)
       continue;
     }
 
-    /* send UPDATE */
+    /* Send UPDATE */
     akes_send_update(next);
-    PRINTF("[KeyRev]: Sent UPDATE\n");
+    PRINTF("key-rev: Sent UPDATE\n");
     next = akes_nbr_next(next);
   }
 }
 #endif /* AKES_NBR_WITH_GROUP_KEYS */
 /*---------------------------------------------------------------------------*/
 int
-akes_revoke_node(const linkaddr_t *addr)
+akes_revoke_node(const linkaddr_t *addr, int add_to_nrl)
 {
-  // Add compromised node to Node Revocation List
-  if (nrl_revoke(addr) < 0) {
-    return ERROR_NRL_FULL;
+  if (add_to_nrl) {
+    PRINTF("key-rev: Shared secret was not updated. Add node id to Node Revocation List.\n");
+    if (nrl_revoke(addr) < 0) {
+      return ERROR_NRL_FULL;
+    }
   }
 
   struct akes_nbr_entry *entry;
   entry = akes_nbr_get_entry(addr);
 
   if(entry) {
-    // Remove compromised node from AKES neighbor table
+    /* Remove compromised node from AKES neighbor table */
     enum akes_nbr_status status;
     if (entry->tentative) {
       status = AKES_NBR_TENTATIVE;
     } else if(entry->permanent) {
       status = AKES_NBR_PERMANENT;
     } else {
-      PRINTF("[KeyRev]: Neighbor is neither tentative nor permanent. This should never happen!\n");
+      PRINTF("key-rev: Neighbor is neither tentative nor permanent. This should never happen!\n");
       return ERROR;
     }
     akes_nbr_delete(entry, status);
 
-    // Possibly remove compromised node from rpl_parents table
+    /* Possibly remove compromised node from rpl_parents table */
     rpl_dag_t *dag = rpl_get_any_dag();
     rpl_parent_t *p;
     rpl_parent_t *any_parent;
@@ -125,29 +128,31 @@ akes_revoke_node(const linkaddr_t *addr)
     while(p != NULL) {
       const linkaddr_t *lladdr = rpl_get_parent_lladdr(p);
       if(dag == p->dag && linkaddr_cmp(lladdr, addr) != 0) {
-        int isPreferredParent = p == dag->preferred_parent;
+        int is_preferred_parent = p == dag->preferred_parent;
         rpl_remove_parent(p);
-        if (isPreferredParent) {
-          // If the deleted parent was the preferred parent, trigger the selection of a new preferred parent
+        if (is_preferred_parent) {
+          /* If the deleted parent was the preferred parent, trigger the selection of a new preferred parent ...*/
           any_parent = nbr_table_head(rpl_parents);
           rpl_select_dag(dag->instance, any_parent);
+          /* ... and send a DAO to the border router to inform it of the route change*/
+          dao_output(dag->preferred_parent, dag->instance->default_lifetime);
         }
         break;
       }
       p = nbr_table_next(rpl_parents, p);
     }
   } else {
-    PRINTF("[KeyRev]: Node that should be revoked is not a neighbor.\n");
+    PRINTF("key-rev: Node that should be revoked is not a neighbor.\n");
     return SUCCESS;
   }
 
 #if AKES_NBR_WITH_GROUP_KEYS
-  PRINTF("[KeyRev]: Update group session key as a neighbor node was compromised.\n");
+  PRINTF("key-rev: Update group session key as a neighbor node was compromised.\n");
   akes_update_group_key();
-  PRINTF("[KeyRev]: Group session key update completed.\n");
+  PRINTF("key-rev: Group session key update completed.\n");
 
 #else
-  PRINTF("[KeyRev]: AKES_NBR_WITH_GROUP_KEYS is not defined, so there is no need to update the group session key.\n");
+  PRINTF("key-rev: AKES_NBR_WITH_GROUP_KEYS is not defined, so there is no need to update the group session key.\n");
 #endif /* AKES_NBR_WITH_GROUP_KEYS */
 
   return SUCCESS;

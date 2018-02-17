@@ -44,47 +44,21 @@
 #include "contiki.h"
 #include "contiki-net.h"
 #include "rest-engine.h"
-#include "uip-debug.h"
+#include "uip.h"
 
 #if PLATFORM_HAS_BUTTON
 #include "dev/button-sensor.h"
 #endif
 
-#define UIP_IP_BUF   ((struct uip_ip_hdr *)&uip_buf[UIP_LLH_LEN])
+#define DEBUG 0
+#if DEBUG
+#include <stdio.h>
+#define PRINTF(...) printf(__VA_ARGS__)
+#else
+#define PRINTF(...)
+#endif
 
-#define DEBUG 1
-// #if DEBUG
-// #include <stdio.h>
-// #define PRINTF(...) printf(__VA_ARGS__)
-// #else
-// #define PRINTF(...)
-// #endif
-
-/*
- * Resources to be activated need to be imported through the extern keyword.
- * The build system automatically compiles the resources in the corresponding sub-directory.
- */
-
-extern resource_t
-  res_event,
-  res_key_revocation;
-
-static void
-print_local_addresses(void) {
-  int i;
-  uint8_t state;
-
-  PRINTF("Server IPv6 addresses:\n");
-  for(i = 0; i < UIP_DS6_ADDR_NB; i++) {
-    state = uip_ds6_if.addr_list[i].state;
-    if(uip_ds6_if.addr_list[i].isused &&
-       (state == ADDR_TENTATIVE || state == ADDR_PREFERRED)) {
-      PRINTF(" ");
-      uip_debug_ipaddr_print(&uip_ds6_if.addr_list[i].ipaddr);
-      PRINTF("\n");
-    }
-  }
-}
+extern resource_t res_key_revocation;
 
 static void
 set_own_address(void)
@@ -108,48 +82,21 @@ PROCESS_THREAD(key_revocation_server, ev, data)
 
   set_own_address();
 
-  PRINTF("Starting Key Revocation CoAP Server\n");
-
 #ifdef RF_CHANNEL
   PRINTF("RF channel: %u\n", RF_CHANNEL);
 #endif
-#ifdef IEEE802154_PANID
-  PRINTF("PAN ID: 0x%04X\n", IEEE802154_PANID);
-#endif
-
-  PRINTF("uIP buffer: %u\n", UIP_BUFSIZE);
-  PRINTF("LL header: %u\n", UIP_LLH_LEN);
-  PRINTF("IP+UDP header: %u\n", UIP_IPUDPH_LEN);
-  PRINTF("REST max chunk: %u\n", REST_MAX_CHUNK_SIZE);
-
+  
+#if KEY_REVOCATION_ENABLED
   /* Initialize the REST engine. */
   rest_init_engine();
 
-  /*
-   * Bind the resources to their Uri-Path.
-   * WARNING: Activating twice only means alternate path, not two instances!
-   * All static variables are the same for each URI path.
-   */
-  rest_activate_resource(&res_event, (char *) "sensors/button");
-
-#if KEY_REVOCATION_ENABLED
-  rest_activate_resource(&res_key_revocation, (char *) "keys/info");
-  PRINTF("[KeyRev] Key revocation enabled.\n");
+  PRINTF("key-rev: Starting Key Revocation CoAP Server\n");
+  rest_activate_resource(&res_key_revocation, (char *) "akes/key-revocation");
+  PRINTF("key-rev: Key revocation enabled.\n");
 #endif /* KEY_REVOCATION_ENABLED */
 
-  /* Define application-specific events here. */
   while(1) {
     PROCESS_WAIT_EVENT();
-#if PLATFORM_HAS_BUTTON
-    if(ev == sensors_event && data == &button_sensor) {
-      PRINTF("*******BUTTON*******\n");
-      print_local_addresses();
-
-      /* Call the event_handler for this application-specific event. */
-      res_event.trigger();
-
-    }
-#endif /* PLATFORM_HAS_BUTTON */
   } /* while (1) */
 
   PROCESS_END();

@@ -34,6 +34,7 @@
  * \file
  *         Blom's scheme.
  * \author
+ *         Konrad Krentz <konrad.krentz@gmail.com>
  *         Daniel Werner <daniel.werner@student.hpi.de>
  */
 

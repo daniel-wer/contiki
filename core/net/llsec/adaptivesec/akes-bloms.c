@@ -34,6 +34,7 @@
  * \file
  *         Blom's scheme.
  * \author
+ *         Konrad Krentz <konrad.krentz@gmail.com>
  *         Daniel Werner <daniel.werner@student.hpi.de>
  */
 
@@ -159,19 +160,21 @@ get_secret_with(const linkaddr_t *addr)
   return cache[id];
 }
 /*---------------------------------------------------------------------------*/
-static void
-update_secret_with(const linkaddr_t *addr, const uint8_t *newSecret, const int secretLen)
+static int
+update_secret_with(const linkaddr_t *addr, const uint8_t *new_secret, const int secret_len)
 {
+  /* Not implemented */
+  return 1;
 }
 /*---------------------------------------------------------------------------*/
 static void
 init(void)
 {
   int i,j;
-  // TODO Use the preloaded matrix D instead of this generated one
-  // HACK: Sync the prng to get the same random matrix on each node
+  /* TODO Use the preloaded matrix D instead of this generated one */
+  /* HACK: Sync the prng to get the same random matrix on each node */
   csprng_init();
-  // Create symmetrical matrix D
+  /* Create symmetrical matrix D */
   uint8_t matrix_d[LAMBDA * LAMBDA];
   for(i = 0; i < LAMBDA; i++) {
     for(j = 0; j <= i; j++) {
@@ -183,8 +186,8 @@ init(void)
   uint16_t id = get_id_hacky(&linkaddr_node_addr);
   PRINTF("[Bloms]: My id is %d.\n", id);
 
-  // Calculate only the relevant column of the Vandermonde matrix G
-  // and use it to calculate the relevant row vector of A
+  /* Calculate only the relevant column of the Vandermonde matrix G
+  and use it to calculate the relevant row vector of A */
   for(i = 0; i < LAMBDA; i++) {
     row[i] = 0;
     for(j = 0; j < LAMBDA; j++) {
