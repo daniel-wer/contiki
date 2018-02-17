@@ -42,7 +42,6 @@
 #include "net/llsec/adaptivesec/akes.h"
 #include "net/llsec/adaptivesec/nrl.h"
 #include "net/rpl/rpl.h"
-#include "cpu/cc2538/dev/cc2538-rf-async.h"
 
 #define DEBUG 0
 #if DEBUG
