@@ -46,6 +46,8 @@
 #include "net/llsec/adaptivesec/adaptivesec.h"
 #include "net/llsec/adaptivesec/akes-update.h"
 
+#if KEY_REVOCATION_ENABLED
+
 #define BASE_STATION_KEY { 0x00 , 0x01 , 0x02 , 0x03 , \
                            0x04 , 0x05 , 0x06 , 0x07 , \
                            0x08 , 0x09 , 0x0A , 0x0B , \
@@ -70,7 +72,6 @@ uint16_t saved_mid = 1337;
 #define PRINTF(...)
 #endif /* DEBUG */
 
-#if KEY_REVOCATION_ENABLED
 /*---------------------------------------------------------------------------*/
 uint8_t *
 int_to_char(int x, uint8_t* results) {
@@ -78,53 +79,22 @@ int_to_char(int x, uint8_t* results) {
     results[0] = '0';
     return &results[1];
   }
-  int i = (int) log10((double) x);
-  int end = i;
+  /* Avoid log10() which is not present */
+  int num_digits = 0;
+  int temp;
+  for(temp = x; temp > 0;)
+  {
+      temp /= 10;
+      num_digits++;
+  }
+  num_digits--;
+  int end = num_digits;
   while(x > 0) {
-    results[i] = (x % 10) + '0';
+    results[num_digits] = (x % 10) + '0';
     x /= 10;
-    i--;
+    num_digits--;
   }
   return &results[end+1];
-}
-/*---------------------------------------------------------------------------*/
-static void
-res_get_handler(void *request,
-    void *response,
-    uint8_t *buffer,
-    uint16_t preferred_size,
-    int32_t *offset)
-{
-  unsigned int accept;
-  const char *queryString;
-  const char *msg = "Supporting content-types text/plain and application/json";
-
-  accept = -1;
-  REST.get_header_accept(request, &accept);
-  int debugQueryLen = REST.get_query_variable(request, "debug", &queryString);
-
-  PRINTF("key-rev: Received GET request asking for this debug value: %.*s\n", debugQueryLen, queryString);
-
-  if(accept == -1 || accept == REST.type.TEXT_PLAIN) {
-    REST.set_header_content_type(response, REST.type.TEXT_PLAIN);
-
-    if(strncmp(queryString, "broadcastKey", debugQueryLen) == 0) {
-#if AKES_NBR_WITH_GROUP_KEYS
-      REST.set_response_payload(response, adaptivesec_group_key, AES_128_KEY_LENGTH);
-#endif /* AKES_NBR_WITH_GROUP_KEYS */
-    } else if(strncmp(queryString, "neighborCount", debugQueryLen) == 0) {
-      const uint8_t neighborCount = akes_nbr_count(AKES_NBR_PERMANENT) + akes_nbr_count(AKES_NBR_TENTATIVE);
-      char neighborCountStr[4];
-      int neighbor_count_str_len = sprintf(neighborCountStr, "%d", neighborCount);
-      REST.set_response_payload(response, neighborCountStr, neighbor_count_str_len);
-    } else {
-      PRINTF("key-rev: Unknown debug parameter.\n");
-    }
-  } else {
-    PRINTF("key-rev: Got request with unsupported Content-Type.\n");
-    REST.set_response_status(response, REST.status.NOT_ACCEPTABLE);
-    REST.set_response_payload(response, msg, strlen(msg));
-  }
 }
 /*---------------------------------------------------------------------------*/
 void
@@ -261,7 +231,7 @@ res_post_handler(void *request,
 /*---------------------------------------------------------------------------*/
 RESOURCE(res_key_revocation,
     "title=\"Key\"",
-    res_get_handler,
+    NULL,
     res_post_handler,
     NULL,
     NULL);

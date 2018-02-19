@@ -11,7 +11,7 @@ import math
 import logging
 logging.basicConfig()
 
-NUMBER_OF_COOJA_MOTES = 100
+NUMBER_OF_COOJA_MOTES = 49
 
 mac_1 = "00124b000430533b"
 mac_2 = "00124b000430531a"
@@ -27,7 +27,7 @@ for i in xrange(NUMBER_OF_COOJA_MOTES):
 	ide = i + 2
 	cooja_macs.append(("000" + hex(ide)[2:])[-4:] * 4)
 
-mac = cooja_macs[27]
+mac = cooja_macs[26]
 # mac = mac_5
 
 invalid_mac = "1337133713371337"
@@ -53,7 +53,7 @@ for i in xrange(NUMBER_OF_COOJA_MOTES):
 	idStr = hex(ide)[2:]
 	cooja_hosts.append("fd00::2" + ("0" + idStr)[-2:] + (":" + idStr) * 3)
 
-available_hosts = cooja_hosts[:27] + cooja_hosts[27:]
+available_hosts = cooja_hosts[:26] + cooja_hosts[26:]
 # available_hosts = [host_7, host_12, host_13]
 
 port = 5683

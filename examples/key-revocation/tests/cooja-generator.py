@@ -33,4 +33,4 @@ def createGrid(width, height):
 
     return result
 
-print createGrid(7, 7)
+print createGrid(12,12)

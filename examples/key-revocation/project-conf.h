@@ -115,7 +115,7 @@
 #define RPL_CONF_WITH_DAO_ACK          0
 
 /* Enable client-side support for COAP observe */
-#define COAP_OBSERVE_CLIENT 1
+#define COAP_OBSERVE_CLIENT 0
 
 
 
@@ -192,8 +192,6 @@
 
 /* configure Key Revocation */
 #define KEY_REVOCATION_ENABLED 1
-
-#define UIP_CONF_STATISTICS 1
 
 // #define LINKADDR_CONF_SIZE 2
 
