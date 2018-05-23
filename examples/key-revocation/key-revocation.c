@@ -46,10 +46,6 @@
 #include "rest-engine.h"
 #include "uip.h"
 
-#if PLATFORM_HAS_BUTTON
-#include "dev/button-sensor.h"
-#endif
-
 #define DEBUG 0
 #if DEBUG
 #include <stdio.h>

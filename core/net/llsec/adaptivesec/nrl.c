@@ -133,7 +133,7 @@ nrl_init(void)
     return;
   }
 
-  for(;;) {
+  while(nrl_length < REVOCATION_LIST_LENGTH) {
     bytes_read = cfs_read(fd, &nrl[nrl_length], LINKADDR_SIZE);
     if(bytes_read < LINKADDR_SIZE) {
       break;
